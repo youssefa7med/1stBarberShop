@@ -11,7 +11,7 @@ import toast from 'react-hot-toast'
 export const Services: React.FC = () => {
   const { t } = useTranslation()
   const { services, addService, deleteService, updateService } = useServices()
-  const { addVariant, deleteVariant, fetchVariants } = useServiceVariants()
+  const { addVariant, deleteVariant } = useServiceVariants()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('haircut')
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
@@ -29,27 +29,18 @@ export const Services: React.FC = () => {
 
   const categories = ['haircut', 'beard', 'skincare', 'kids', 'packages']
 
-  // Load variants for all services
+  // Load variants for all services  
   useEffect(() => {
     const loadAllVariants = async () => {
+      // For now, just initialize empty map - variants are loaded separately
       const variantsMap: {[key: string]: any[]} = {}
-      for (const service of services) {
-        try {
-          const serviceVariants = await fetchVariants()
-          if (serviceVariants) {
-            variantsMap[service.id] = serviceVariants.filter((v: any) => v.serviceId === service.id)
-          }
-        } catch (err) {
-          // No variants
-        }
-      }
       setServiceVariantsMap(variantsMap)
     }
 
     if (services.length > 0) {
       loadAllVariants()
     }
-  }, [services, fetchVariants])
+  }, [services])
 
   const openAddModal = () => {
     setEditingServiceId(null)
@@ -201,12 +192,13 @@ export const Services: React.FC = () => {
       {/* Services Grid - Card Based Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredServices.map((service, idx) => {
-          const serviceVariants = serviceVariantsMap[service.id] || []
-          const isExpanded = expandedServiceId === service.id
+          const serviceId = service.id || String(idx)
+          const serviceVariants = serviceVariantsMap[serviceId] || []
+          const isExpanded = expandedServiceId === serviceId
 
           return (
             <motion.div
-              key={service.id || idx}
+              key={serviceId}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
@@ -246,7 +238,7 @@ export const Services: React.FC = () => {
                     <div className="border-t border-white/10 pt-3">
                       <button
                         onClick={() =>
-                          setExpandedServiceId(isExpanded ? null : service.id)
+                          setExpandedServiceId(isExpanded ? null : serviceId)
                         }
                         className="w-full flex items-center justify-between p-2 hover:bg-white/5 rounded transition"
                       >

@@ -13,7 +13,7 @@ import { TrendingUp, TrendingDown, Users, DollarSign, RefreshCw } from 'lucide-r
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation()
   const { transactions, fetchTransactions, loading: transLoading } = useTransactions()
-  const { expenses, fetchExpenses, loading: expLoading } = useExpenses()
+  const { expenses, fetchExpenses } = useExpenses()
   const [todayRevenue, setTodayRevenue] = useState(0)
   const [todayExpenses, setTodayExpenses] = useState(0)
   const [todayClients, setTodayClients] = useState(0)

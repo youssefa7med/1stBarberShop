@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 import { GlassCard } from '../components/ui/GlassCard'
@@ -6,7 +6,7 @@ import { Modal } from '../components/ui/Modal'
 import { useTransactions } from '../db/hooks/useTransactions'
 import { useVisitLogs } from '../db/hooks/useVisitLogs'
 import { getEgyptDateString } from '../utils/egyptTime'
-import { Edit2, Trash2, Eye } from 'lucide-react'
+import { Edit2, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export const DailyLogs: React.FC = () => {

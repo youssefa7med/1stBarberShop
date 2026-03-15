@@ -8,15 +8,11 @@ const EGYPT_TIMEZONE = 'Africa/Cairo'
 /**
  * Get current date in Egypt timezone as YYYY-MM-DD format
  */
-export const getEgyptDateString = (): string => {
+export const getEgyptDateString = (date: Date = new Date()): string => {
   // Use Intl.DateTimeFormat with explicit Cairo timezone
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const result = date.toLocaleDateString('en-CA', {
     timeZone: 'Africa/Cairo'
   })
-  const result = formatter.format(new Date())
   console.log('[getEgyptDateString] Result:', result)
   return result
 }
@@ -124,12 +120,6 @@ export const getEgyptQuarterYear = (date: Date = new Date(), locale: 'ar' | 'en'
  * Returns: "Week 3 2026"
  */
 export const getEgyptWeekYear = (date: Date = new Date()): string => {
-  const formatter = new Intl.DateTimeFormat('en-EG', {
-    year: 'numeric',
-    weekday: 'long',
-    timeZone: EGYPT_TIMEZONE,
-  })
-  
   const parts = new Intl.DateTimeFormat('en-EG', {
     year: 'numeric',
     month: '2-digit',

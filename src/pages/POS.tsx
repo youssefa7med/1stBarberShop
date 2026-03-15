@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Modal } from '../components/ui/Modal'
 import { X, Search, Trash2, Printer, Check } from 'lucide-react'
@@ -36,8 +35,7 @@ interface CompletedTransaction {
 }
 
 export const POS: React.FC = () => {
-  const { t } = useTranslation()
-  const { clients, addClient, updateClient } = useClients()
+  const { clients, updateClient } = useClients()
   const { services } = useServices()
   const { addTransaction } = useTransactions()
   const { addVisitLog } = useVisitLogs()
