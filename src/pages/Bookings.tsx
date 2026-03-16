@@ -37,6 +37,8 @@ interface TimeSlot {
   available: boolean
   reason?: string
   bookingCount?: number
+  hasCompletedBooking?: boolean  // True if a completed booking exists at this time
+  hasPendingBooking?: boolean     // True if a pending booking exists at this time
 }
 
 export const Bookings: React.FC = () => {
@@ -75,7 +77,7 @@ export const Bookings: React.FC = () => {
     const slots: TimeSlot[] = []
     const intervalMinutes = 30
 
-    // الحجوزات في هذا اليوم للحلاق المحدد
+    // الحجوزات في هذا اليوم للحلاق المحدد (شامل جميع الحالات)
     const dayBookings = getTodayBookings().filter((b: any) => {
       const isCorrectDate = new Date(b.bookingtime).toLocaleDateString('en-CA') === date
       const isCorrectBarber = !selectedBarberId || b.barberid === selectedBarberId
@@ -95,6 +97,24 @@ export const Bookings: React.FC = () => {
           return Math.abs(timeMs - bookingTimeMs) < 30
         })
 
+        // تحقق من الحجوزات المكتملة في هذا الوقت
+        const completedBooking = dayBookings.find((booking: any) => {
+          const bookingHour = parseInt(booking.bookingtime.split('T')[1].substring(0, 2))
+          const bookingMin = parseInt(booking.bookingtime.split('T')[1].substring(3, 5))
+          const bookingTimeMs = bookingHour * 60 + bookingMin
+          const timeMatch = Math.abs(timeMs - bookingTimeMs) < 30
+          return timeMatch && booking.status === 'completed'
+        })
+
+        // تحقق من الحجوزات المعلقة في هذا الوقت
+        const pendingBooking = dayBookings.find((booking: any) => {
+          const bookingHour = parseInt(booking.bookingtime.split('T')[1].substring(0, 2))
+          const bookingMin = parseInt(booking.bookingtime.split('T')[1].substring(3, 5))
+          const bookingTimeMs = bookingHour * 60 + bookingMin
+          const timeMatch = Math.abs(timeMs - bookingTimeMs) < 30
+          return timeMatch && booking.status !== 'completed' && booking.status !== 'cancelled'
+        })
+
         slots.push({
           time: timeStr,
           available: !hasConflict,
@@ -103,6 +123,8 @@ export const Bookings: React.FC = () => {
             const bHour = parseInt(b.bookingtime.split('T')[1].substring(0, 2))
             return bHour === hour
           }).length,
+          hasCompletedBooking: !!completedBooking,
+          hasPendingBooking: !!pendingBooking,
         })
       }
     }
@@ -449,12 +471,39 @@ export const Bookings: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ delay: index * 0.05 }}
-                className="glass-dark rounded-lg p-6 border border-white/10"
+                className={`glass-dark rounded-lg p-6 border-2 transition ${
+                  booking.status === 'completed'
+                    ? 'border-green-500/50 bg-green-500/5'
+                    : booking.status === 'cancelled'
+                    ? 'border-red-500/30 bg-red-500/5'
+                    : 'border-white/10'
+                }`}
               >
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-gold-400/20 rounded-lg px-3 py-1">
-                      <span className="text-gold-400 font-bold">#{booking.queueNumber}</span>
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex gap-2">
+                      <div className="bg-gold-400/20 rounded-lg px-3 py-1">
+                        <span className="text-gold-400 font-bold">#{booking.queueNumber}</span>
+                      </div>
+                      <div
+                        className={`rounded-lg px-3 py-1 text-xs font-bold ${
+                          booking.status === 'completed'
+                            ? 'bg-green-500/30 text-green-300'
+                            : booking.status === 'cancelled'
+                            ? 'bg-red-500/30 text-red-300'
+                            : booking.status === 'ongoing'
+                            ? 'bg-blue-500/30 text-blue-300'
+                            : 'bg-yellow-500/30 text-yellow-300'
+                        }`}
+                      >
+                        {booking.status === 'completed'
+                          ? '✅ اكتمل'
+                          : booking.status === 'cancelled'
+                          ? '❌ ملغى'
+                          : booking.status === 'ongoing'
+                          ? '⏳ جاري'
+                          : '⏰ انتظار'}
+                      </div>
                     </div>
                     <div>
                       <h3 className="text-white font-semibold">{booking.clientName}</h3>
@@ -462,10 +511,26 @@ export const Bookings: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {booking.status !== 'completed' && booking.status !== 'cancelled' && (
+                      <motion.button
+                        onClick={() => handleStatusChange(booking.id, 'completed')}
+                        whileHover={{ scale: 1.1 }}
+                        className="p-2 hover:bg-green-500/20 rounded transition text-green-400 border border-green-500/30"
+                        title="تحديد كمكتمل"
+                      >
+                        <CheckCircle2 size={18} />
+                      </motion.button>
+                    )}
                     <select
                       value={booking.status}
                       onChange={(e) => handleStatusChange(booking.id, e.target.value as Booking['status'])}
-                      className="bg-white/10 text-white px-3 py-1 rounded text-sm border border-white/20 focus:border-gold-400 focus:outline-none"
+                      className={`px-3 py-1 rounded text-sm border focus:outline-none transition ${
+                        booking.status === 'completed'
+                          ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                          : booking.status === 'cancelled'
+                          ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                          : 'bg-white/10 text-white border-white/20 focus:border-gold-400'
+                      }`}
                     >
                       <option value="pending">في الانتظار</option>
                       <option value="ongoing">جاري</option>
@@ -746,24 +811,39 @@ export const Bookings: React.FC = () => {
 
                   {/* Available Times Grid */}
                   <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                    <p className="text-xs text-gray-400 mb-3">🟢 = متاح | 🔴 = محجوز</p>
+                    <p className="text-xs text-gray-400 mb-3">
+                      🟢 = متاح | 🔴 = محجوز (قيد الانتظار) | ✅ = اكتمل
+                    </p>
                     <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto">
                       {availableSlots.map((slot) => (
                         <motion.button
                           key={slot.time}
                           type="button"
-                          onClick={() => setFormData({ ...formData, bookingTime: slot.time })}
-                          whileHover={slot.available ? { scale: 1.05 } : {}}
+                          onClick={() => {
+                            if (slot.available || slot.hasCompletedBooking) {
+                              setFormData({ ...formData, bookingTime: slot.time })
+                            }
+                          }}
+                          whileHover={slot.available && !slot.hasCompletedBooking ? { scale: 1.05 } : {}}
                           className={`py-2 px-1 rounded text-xs font-semibold text-center transition ${
-                            slot.available
+                            slot.hasCompletedBooking
+                              ? 'bg-green-500/40 text-green-300 border border-green-500/70 font-bold'
+                              : slot.available
                               ? formData.bookingTime === slot.time
-                                ? 'bg-gold-400 text-dark'
-                                : 'bg-green-500/30 text-green-300 border border-green-500/50'
-                              : 'bg-red-500/20 text-red-400 opacity-50 cursor-not-allowed'
+                                ? 'bg-gold-400 text-dark border-2 border-gold-400'
+                                : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                              : 'bg-red-500/40 text-red-300 border border-red-500/70 cursor-not-allowed opacity-75'
                           }`}
-                          disabled={!slot.available}
+                          disabled={!slot.available && !slot.hasCompletedBooking}
+                          title={
+                            slot.hasCompletedBooking
+                              ? 'تم بالفعل ✅'
+                              : !slot.available
+                              ? slot.reason
+                              : 'متاح'
+                          }
                         >
-                          {slot.time}
+                          {slot.hasCompletedBooking ? '✅' : slot.available ? slot.time : '❌'}
                         </motion.button>
                       ))}
                     </div>
