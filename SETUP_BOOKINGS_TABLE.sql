@@ -33,14 +33,27 @@ CREATE INDEX IF NOT EXISTS idx_bookings_bookingTime ON bookings(bookingTime);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_queueNumber ON bookings(queueNumber);
 
--- ✅ اختياري - بعد التأكد من أن كل شيء يعمل، فعّل RLS:
--- ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
--- 
--- CREATE POLICY "Enable read access for all users" ON bookings
---     FOR SELECT USING (true);
--- 
--- CREATE POLICY "Enable write access for all users" ON bookings
---     FOR INSERT WITH CHECK (true);
+-- ✅ تفعيل RLS (أمان أفضل):
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+-- حذف أي سياسات قديمة:
+DROP POLICY IF EXISTS "Enable read access for all users" ON bookings;
+DROP POLICY IF EXISTS "Enable write access for all users" ON bookings;
+DROP POLICY IF EXISTS "Enable update access for all users" ON bookings;
+DROP POLICY IF EXISTS "Enable delete access for all users" ON bookings;
+
+-- إضافة سياسات آمنة (تسمح للجميع في بيئة التطوير):
+CREATE POLICY "bookings_select_policy" ON bookings
+    FOR SELECT USING (true);
+
+CREATE POLICY "bookings_insert_policy" ON bookings
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "bookings_update_policy" ON bookings
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+CREATE POLICY "bookings_delete_policy" ON bookings
+    FOR DELETE USING (true);
 
 -- التحقق من الجدول:
 SELECT COUNT(*) as total_bookings FROM bookings;

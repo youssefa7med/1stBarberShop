@@ -16,7 +16,7 @@ export const useBookings = () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .order('bookingTime', { ascending: true })
+        .order('bookingtime', { ascending: true })
 
       if (error) throw error
       console.log('Bookings fetched:', data?.length || 0, 'records')
