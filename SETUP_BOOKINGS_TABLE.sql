@@ -1,8 +1,5 @@
-#!/bin/bash
-
-# نموذج SQL لإنشاء جدول الحجوزات في Supabase
-
-# قم بالذهاب إلى Supabase Dashboard → SQL Editor وقم بتنفيذ:
+-- نموذج SQL لإنشاء جدول الحجوزات في Supabase
+-- قم بالذهاب إلى Supabase Dashboard → SQL Editor وقم بتنفيذ:
 
 CREATE TABLE bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
