@@ -235,6 +235,37 @@ html.light nav a:hover {
   color: #d97706 !important;
 }
 
+/* ===== INPUT FIELDS - DARK MODE ===== */
+input[type='text'],
+input[type='tel'],
+input[type='email'],
+input[type='date'],
+input[type='number'],
+textarea,
+select {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #f3f4f6 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: #d4af37 !important;
+  outline: none !important;
+}
+
+select option {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+}
+
 /* ===== INPUT FIELDS - LIGHT MODE ===== */
 html.light input[type='text'],
 html.light input[type='tel'],
@@ -259,6 +290,11 @@ html.light select:focus {
   background-color: #f9fafb !important;
   border-color: #d97706 !important;
   outline: none !important;
+}
+
+html.light select option {
+  background-color: #ffffff !important;
+  color: #111827 !important;
 }
 
 /* ===== BADGES & TAGS - LIGHT MODE ===== */

@@ -57,8 +57,13 @@ export const Clients: React.FC = () => {
       toast.success(t('notifications.client_added'))
       setFormData({ name: '', phone: '', birthday: '' })
       setIsModalOpen(false)
-    } catch (err) {
-      toast.error(t('errors.database_error'))
+    } catch (err: any) {
+      // Check if error is due to duplicate phone number
+      if (err.message && err.message.includes('unique')) {
+        toast.error('⚠️ رقم الهاتف هذا مسجل بالفعل لعميل آخر')
+      } else {
+        toast.error(t('errors.database_error'))
+      }
     }
   }
 
