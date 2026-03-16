@@ -15,6 +15,10 @@ import {
   Edit2,
   Trash2,
   AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Users,
+  Zap,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -30,6 +34,13 @@ interface NewBooking {
   duration: number
 }
 
+interface TimeSlot {
+  time: string
+  available: boolean
+  reason?: string
+  bookingCount?: number
+}
+
 export const Bookings: React.FC = () => {
   useTranslation()
   const { loading, getTodayBookings, getUpcomingBookings, addBooking, updateBooking, deleteBooking } = useBookings()
@@ -41,6 +52,8 @@ export const Bookings: React.FC = () => {
   const [viewMode, setViewMode] = useState<'today' | 'upcoming'>('today')
   const [searchResults, setSearchResults] = useState<typeof clients>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [previewInfo, setPreviewInfo] = useState<any>(null)
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
 
   const [formData, setFormData] = useState<NewBooking>({
     searchQuery: '',
@@ -56,6 +69,72 @@ export const Bookings: React.FC = () => {
 
   const todayBookings = getTodayBookings()
   const upcomingBookings = getUpcomingBookings()
+
+  // حساب الأوقات المتاحة والمشغولة
+  const calculateAvailableSlots = (date: string, selectedBarberId?: string) => {
+    const slots: TimeSlot[] = []
+    const workingHours = { start: 9, end: 20 } // 9 AM to 8 PM
+    const intervalMinutes = 30
+
+    // الحجوزات في هذا اليوم
+    const dayBookings = getTodayBookings().filter(
+      (b) => new Date(b.bookingtime).toLocaleDateString('en-CA') === date
+    )
+
+    for (let hour = workingHours.start; hour < workingHours.end; hour++) {
+      for (let min = 0; min < 60; min += intervalMinutes) {
+        const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+        const timeMs = hour * 60 + min
+
+        // تحقق من التضاربات
+        const hasConflict = dayBookings.some((booking) => {
+          const bookingHour = parseInt(booking.bookingtime.split('T')[1].substring(0, 2))
+          const bookingMin = parseInt(booking.bookingtime.split('T')[1].substring(3, 5))
+          const bookingTimeMs = bookingHour * 60 + bookingMin
+
+          const conflict = Math.abs(timeMs - bookingTimeMs) < 30 // 30 دقيقة بافر
+          return !selectedBarberId || conflict
+        })
+
+        slots.push({
+          time: timeStr,
+          available: !hasConflict,
+          reason: hasConflict ? 'محجوز بالفعل' : undefined,
+        })
+      }
+    }
+
+    return slots
+  }
+
+  // تحديث الأوقات عند تغيير التاريخ أو الحلاق
+  React.useEffect(() => {
+    if (formData.bookingDate) {
+      const slots = calculateAvailableSlots(formData.bookingDate, formData.barberId || undefined)
+      setAvailableSlots(slots)
+    }
+  }, [formData.bookingDate, formData.barberId])
+
+  // تحديث معاينة الدور عند تغيير الوقت
+  React.useEffect(() => {
+    if (formData.bookingTime) {
+      const dayBookings = getTodayBookings().filter(
+        (b) => new Date(b.bookingtime).toLocaleDateString('en-CA') === formData.bookingDate
+      )
+      const queueNumber = (dayBookings.filter((b) => 
+        parseInt(b.bookingtime.split('T')[1]) < parseInt(formData.bookingTime)
+      ).length || 0) + 1
+
+      const totalWaitMinutes = dayBookings
+        .filter((b) => parseInt(b.bookingtime.split('T')[1]) < parseInt(formData.bookingTime))
+        .reduce((sum, b) => sum + (b.duration || 30), 0)
+
+      setPreviewInfo({
+        queueNumber,
+        estimatedWait: totalWaitMinutes,
+      })
+    }
+  }, [formData.bookingTime, formData.bookingDate])
 
   // Search for clients
   const handleClientSearch = (query: string) => {
@@ -90,13 +169,27 @@ export const Bookings: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // سلسلة من الفحوصات بتفاصيل واضحة
     if (!formData.clientId) {
-      toast.error('الرجاء اختيار عميل أولاً')
+      toast.error('❌ الرجاء البحث عن العميل واختياره من القائمة')
       return
     }
 
-    if (!formData.bookingDate || !formData.bookingTime) {
-      toast.error('الرجاء تحديد التاريخ والوقت')
+    if (!formData.bookingDate) {
+      toast.error('❌ الرجاء تحديد التاريخ')
+      return
+    }
+
+    if (!formData.bookingTime) {
+      toast.error('❌ الرجاء تحديد الوقت')
+      return
+    }
+
+    // فحص إذا كان الوقت متاح
+    const selectedSlot = availableSlots.find((s) => s.time === formData.bookingTime)
+    if (selectedSlot && !selectedSlot.available) {
+      toast.error(`⚠️ للأسف هذا الوقت ${selectedSlot.reason}!
+احتر أوقات أخرى في نفس اليوم`)
       return
     }
 
@@ -104,37 +197,38 @@ export const Bookings: React.FC = () => {
       const bookingTime = `${formData.bookingDate}T${formData.bookingTime}:00+02:00`
 
       if (editingId) {
-        // Update booking
+        // تعديل الحجز
         const updates: Partial<Booking> = {
           clientId: formData.clientId,
           clientName: formData.clientName,
           clientPhone: formData.clientPhone,
-          barberId: formData.barberId || undefined,
-          serviceType: formData.serviceType || undefined,
-          bookingTime,
+          barberid: formData.barberId || undefined,
+          servicetype: formData.serviceType || undefined,
+          bookingtime: bookingTime,
           duration: formData.duration,
         }
 
         await updateBooking(editingId, updates)
         setEditingId(null)
+        toast.success('✅ تم تحديث الحجز بنجاح')
       } else {
-        // Add new booking
+        // إنشاء حجز جديد
         await addBooking({
           clientId: formData.clientId,
           clientName: formData.clientName,
           clientPhone: formData.clientPhone,
-          barberId: formData.barberId || undefined,
-          barberName: formData.barberId
+          barberid: formData.barberId || undefined,
+          barbername: formData.barberId
             ? barbers?.find((b) => b.id === formData.barberId)?.name
             : undefined,
-          serviceType: formData.serviceType || undefined,
-          bookingTime,
+          servicetype: formData.serviceType || undefined,
+          bookingtime: bookingTime,
           duration: formData.duration,
           status: 'pending',
         } as any)
       }
 
-      // Reset form
+      // إعادة تعيين النموذج
       setFormData({
         searchQuery: '',
         clientId: null,
@@ -147,8 +241,11 @@ export const Bookings: React.FC = () => {
         duration: 30,
       })
       setShowModal(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving booking:', error)
+      if (error.message.includes('محجوز')) {
+        toast.error('⚠️ هذا الموعد محجوز بالفعل من فضلك اختر وقت آخر')
+      }
     }
   }
 
@@ -458,30 +555,92 @@ export const Bookings: React.FC = () => {
                   )}
                 </div>
 
-                {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">
-                      التاريخ *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.bookingDate}
-                      onChange={(e) => setFormData({ ...formData, bookingDate: e.target.value })}
-                      className="w-full bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 focus:border-gold-400 focus:outline-none"
-                    />
+                {/* Date & Time Selection */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-white mb-2">
+                        📅 التاريخ *
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.bookingDate}
+                        onChange={(e) => setFormData({ ...formData, bookingDate: e.target.value })}
+                        className="w-full bg-white/10 text-white px-4 py-2 rounded-lg border-2 border-white/20 focus:border-gold-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white mb-2">
+                        ⏰ الوقت (اختر من القائمة) *
+                      </label>
+                      <select
+                        value={formData.bookingTime}
+                        onChange={(e) => setFormData({ ...formData, bookingTime: e.target.value })}
+                        className="w-full bg-white/10 text-white px-4 py-2 rounded-lg border-2 border-white/20 focus:border-gold-400 focus:outline-none"
+                      >
+                        <option value="">-- اختر وقت متاح --</option>
+                        {availableSlots.map((slot) => (
+                          <option 
+                            key={slot.time} 
+                            value={slot.time}
+                            disabled={!slot.available}
+                            className={slot.available ? '' : 'opacity-50'}
+                          >
+                            {slot.time} {slot.available ? '✓ متاح' : '✗ محجوز'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-white mb-2">
-                      الوقت *
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.bookingTime}
-                      onChange={(e) => setFormData({ ...formData, bookingTime: e.target.value })}
-                      className="w-full bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 focus:border-gold-400 focus:outline-none"
-                    />
+
+                  {/* Available Times Grid */}
+                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <p className="text-xs text-gray-400 mb-3">🟢 = متاح | 🔴 = محجوز</p>
+                    <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto">
+                      {availableSlots.map((slot) => (
+                        <motion.button
+                          key={slot.time}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, bookingTime: slot.time })}
+                          whileHover={slot.available ? { scale: 1.05 } : {}}
+                          className={`py-2 px-1 rounded text-xs font-semibold text-center transition ${
+                            slot.available
+                              ? formData.bookingTime === slot.time
+                                ? 'bg-gold-400 text-dark'
+                                : 'bg-green-500/30 text-green-300 border border-green-500/50'
+                              : 'bg-red-500/20 text-red-400 opacity-50 cursor-not-allowed'
+                          }`}
+                          disabled={!slot.available}
+                        >
+                          {slot.time}
+                        </motion.button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Preview Info */}
+                  {previewInfo && formData.bookingTime && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-blue-500/10 border-2 border-blue-500/30 rounded-lg p-4"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={18} className="text-blue-400" />
+                        <p className="text-sm font-semibold text-blue-300">معاينة الحجز</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">رقمك في الدور:</span>
+                          <p className="text-lg font-bold text-gold-400">#{previewInfo.queueNumber}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">الانتظار المتوقع:</span>
+                          <p className="text-lg font-bold text-white">{previewInfo.estimatedWait} دقيقة</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Duration */}
