@@ -172,26 +172,45 @@ export const Bookings: React.FC = () => {
       return
     }
 
-    if (!formData.bookingDate) {
+    if (!formData.bookingDate || formData.bookingDate.trim() === '') {
       toast.error('❌ الرجاء تحديد التاريخ')
       return
     }
 
-    if (!formData.bookingTime) {
-      toast.error('❌ الرجاء تحديد الوقت')
+    if (!formData.bookingTime || formData.bookingTime.trim() === '') {
+      toast.error('❌ الرجاء تحديد الوقت من القائمة أعلاه')
+      return
+    }
+
+    // فحص صيغة التاريخ والوقت
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    const timeRegex = /^\d{2}:\d{2}$/
+    
+    if (!dateRegex.test(formData.bookingDate)) {
+      toast.error('❌ صيغة التاريخ غير صحيحة')
+      return
+    }
+
+    if (!timeRegex.test(formData.bookingTime)) {
+      toast.error('❌ صيغة الوقت غير صحيحة')
       return
     }
 
     // فحص إذا كان الوقت متاح
     const selectedSlot = availableSlots.find((s) => s.time === formData.bookingTime)
     if (selectedSlot && !selectedSlot.available) {
-      toast.error(`⚠️ للأسف هذا الوقت ${selectedSlot.reason}!
-احتر أوقات أخرى في نفس اليوم`)
+      toast.error(`⚠️ للأسف هذا الوقت ${selectedSlot.reason}!\nاختر أوقات أخرى في نفس اليوم`)
       return
     }
 
     try {
       const bookingTime = `${formData.bookingDate}T${formData.bookingTime}:00+02:00`
+
+      // تحقق نهائي من صحة الوقت قبل الإرسال
+      if (!bookingTime || bookingTime.trim() === '') {
+        toast.error('❌ خطأ في إنشاء الوقت - يرجى المحاولة مرة أخرى')
+        return
+      }
 
       if (editingId) {
         // تعديل الحجز
@@ -223,6 +242,7 @@ export const Bookings: React.FC = () => {
           duration: formData.duration,
           status: 'pending',
         } as any)
+        toast.success('✅ تم إنشاء الحجز بنجاح')
       }
 
       // إعادة تعيين النموذج
@@ -240,8 +260,16 @@ export const Bookings: React.FC = () => {
       setShowModal(false)
     } catch (error: any) {
       console.error('Error saving booking:', error)
-      if (error.message.includes('محجوز')) {
-        toast.error('⚠️ هذا الموعد محجوز بالفعل من فضلك اختر وقت آخر')
+      
+      // معالجة أخطاء قاعدة البيانات
+      if (error.message?.includes('bookingtime') || error.message?.includes('NOT NULL')) {
+        toast.error('❌ خطأ: الرجاء تحديد التاريخ والوقت بشكل صحيح')
+      } else if (error.message?.includes('محجوز') || error.message?.includes('booked')) {
+        toast.error('⚠️ هذا الموعد محجوز بالفعل - اختر وقت آخر')
+      } else if (error.message?.includes('constraint')) {
+        toast.error('❌ خطأ في البيانات - الرجاء التحقق من جميع الحقول')
+      } else {
+        toast.error(`❌ خطأ: ${error.message || 'حدث خطأ أثناء حفظ الحجز'}`)
       }
     }
   }
@@ -571,21 +599,30 @@ export const Bookings: React.FC = () => {
                         ⏰ الوقت (اختر من القائمة) *
                       </label>
                       <select
-                        value={formData.bookingTime}
-                        onChange={(e) => setFormData({ ...formData, bookingTime: e.target.value })}
+                        value={formData.bookingTime || ''}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setFormData({ ...formData, bookingTime: e.target.value })
+                          }
+                        }}
                         className="w-full bg-white/10 text-white px-4 py-2 rounded-lg border-2 border-white/20 focus:border-gold-400 focus:outline-none"
                       >
-                        <option value="">-- اختر وقت متاح --</option>
-                        {availableSlots.map((slot) => (
-                          <option 
-                            key={slot.time} 
-                            value={slot.time}
-                            disabled={!slot.available}
-                            className={slot.available ? '' : 'opacity-50'}
-                          >
-                            {slot.time} {slot.available ? '✓ متاح' : '✗ محجوز'}
-                          </option>
-                        ))}
+                        {availableSlots.length === 0 ? (
+                          <option value="">-- اختر التاريخ أولاً --</option>
+                        ) : (
+                          <>
+                            <option value="" disabled>-- اختر وقت متاح --</option>
+                            {availableSlots.map((slot) => (
+                              <option 
+                                key={slot.time} 
+                                value={slot.time}
+                                disabled={!slot.available}
+                              >
+                                {slot.time} {slot.available ? '✓ متاح' : '✗ محجوز'}
+                              </option>
+                            ))}
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
