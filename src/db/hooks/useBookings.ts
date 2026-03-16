@@ -204,6 +204,12 @@ export const useBookings = () => {
    */
   const isTimeSlotAvailable = (bookingTime: string, barberId?: string): boolean => {
     const timeWindow = 15 * 60000 // 15 minute window
+    const now = new Date()
+
+    // Check if the time has already passed
+    if (new Date(bookingTime) <= now) {
+      return false
+    }
 
     const conflictingBooking = bookings.find((b) => {
       // استبعد الحجوزات المكتملة والملغاة
@@ -308,6 +314,12 @@ export const useBookings = () => {
 
       if (error) throw error
       await fetchBookings()
+      
+      // Emit event for real-time updates when status changes
+      if (updates.status) {
+        appEmitter.emit('booking:statusChanged', { id, status: updates.status })
+      }
+      
       toast.success('تم تحديث الحجز بنجاح')
       return data?.[0]
     } catch (err: any) {

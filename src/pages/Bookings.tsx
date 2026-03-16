@@ -5,6 +5,7 @@ import { useClients } from '../db/hooks/useClients'
 import { useBarbers } from '../db/hooks/useBarbers'
 import { Booking } from '../db/supabase'
 import { getEgyptDateString } from '../utils/egyptTime'
+import { appEmitter } from '../utils/eventEmitter'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar,
@@ -76,6 +77,7 @@ export const Bookings: React.FC = () => {
   const calculateAvailableSlots = (date: string, selectedBarberId?: string) => {
     const slots: TimeSlot[] = []
     const intervalMinutes = 30
+    const now = new Date()
 
     // الحجوزات في هذا اليوم للحلاق المحدد (فقط pending/ongoing)
     const dayBookings = getTodayBookings().filter((b: any) => {
@@ -90,6 +92,10 @@ export const Bookings: React.FC = () => {
       for (let min = 0; min < 60; min += intervalMinutes) {
         const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
         const timeMs = hour * 60 + min
+
+        // Check if time has already passed in real-time
+        const slotDateTime = new Date(`${date}T${timeStr}:00+02:00`)
+        const timeHasPassed = slotDateTime <= now
 
         // تحقق من التضاربات (30 دقيقة بافر) - فقط pending/ongoing
         const hasConflict = dayBookings.some((booking: any) => {
@@ -125,8 +131,8 @@ export const Bookings: React.FC = () => {
 
         slots.push({
           time: timeStr,
-          available: !hasConflict,
-          reason: hasConflict ? 'محجوز بالفعل' : undefined,
+          available: !hasConflict && !timeHasPassed,
+          reason: timeHasPassed ? 'الوقت عدا بالفعل' : (hasConflict ? 'محجوز بالفعل' : undefined),
           bookingCount: dayBookings.filter((b: any) => {
             const bHour = parseInt(b.bookingTime.split('T')[1].substring(0, 2))
             return bHour === hour
@@ -140,13 +146,13 @@ export const Bookings: React.FC = () => {
     return slots
   }
 
-  // تحديث الأوقات عند تغيير التاريخ أو الحلاق
+  // تحديث الأوقات عند تغيير التاريخ أو الحلاق أو عند تحديث الحجوزات
   React.useEffect(() => {
     if (formData.bookingDate) {
       const slots = calculateAvailableSlots(formData.bookingDate, formData.barberId || undefined)
       setAvailableSlots(slots)
     }
-  }, [formData.bookingDate, formData.barberId])
+  }, [formData.bookingDate, formData.barberId, todayBookings])
 
   // تحديث معاينة الدور عند تغيير الوقت
   React.useEffect(() => {
@@ -168,6 +174,20 @@ export const Bookings: React.FC = () => {
       })
     }
   }, [formData.bookingTime, formData.bookingDate])
+
+  // Listen for real-time booking status changes and refresh slots
+  React.useEffect(() => {
+    const handleStatusChange = () => {
+      if (formData.bookingDate) {
+        const slots = calculateAvailableSlots(formData.bookingDate, formData.barberId || undefined)
+        setAvailableSlots(slots)
+      }
+    }
+    appEmitter.on('booking:statusChanged', handleStatusChange)
+    return () => {
+      appEmitter.off('booking:statusChanged', handleStatusChange)
+    }
+  }, [formData.bookingDate, formData.barberId])
 
   // اختيار ذكي - إيجاد أفضل حلاق متاح
   const findBestBarberOption = (date: string): { barberId: string; barberName: string; firstAvailableTime: string; earliestHour: number } | null => {
@@ -347,16 +367,16 @@ export const Bookings: React.FC = () => {
   }
 
   const handleEdit = (booking: any) => {
-    const bookingDate = booking.bookingtime.split('T')[0]
-    const bookingTime = booking.bookingtime.split('T')[1]?.substring(0, 5) || '10:00'
+    const bookingDate = booking.bookingTime.split('T')[0]
+    const bookingTime = booking.bookingTime.split('T')[1]?.substring(0, 5) || '10:00'
 
     setFormData({
       searchQuery: '',
-      clientId: booking.clientid,
-      clientName: booking.clientname,
-      clientPhone: booking.clientphone,
-      barberId: booking.barberid || null,
-      serviceType: booking.servicetype || '',
+      clientId: booking.clientId,
+      clientName: booking.clientName,
+      clientPhone: booking.clientPhone,
+      barberId: booking.barberId || null,
+      serviceType: booking.serviceType || '',
       bookingDate,
       bookingTime,
       duration: booking.duration || 30,
@@ -373,6 +393,11 @@ export const Bookings: React.FC = () => {
 
   const handleStatusChange = async (id: string, status: Booking['status']) => {
     await updateBooking(id, { status })
+    // Refresh available slots after status change
+    if (formData.bookingDate) {
+      const slots = calculateAvailableSlots(formData.bookingDate, formData.barberId || undefined)
+      setAvailableSlots(slots)
+    }
   }
 
   const currentBookings = viewMode === 'today' ? todayBookings : upcomingBookings
