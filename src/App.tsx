@@ -11,6 +11,7 @@ import { Settings } from './pages/Settings'
 import { DailyLogs } from './pages/DailyLogs'
 import { Barbers } from './pages/Barbers'
 import { Bookings } from './pages/Bookings'
+import { QueueDisplay } from './pages/QueueDisplay'
 import { useTheme } from './hooks/useTheme'
 import { useLanguage } from './hooks/useLanguage'
 import { seedSampleData } from './utils/seedData'
@@ -48,6 +49,8 @@ function App() {
         return <Barbers />
       case '/bookings':
         return <Bookings />
+      case '/queue':
+        return <QueueDisplay />
       case '/services':
         return <Services />
       case '/logs':

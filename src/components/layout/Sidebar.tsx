@@ -13,6 +13,7 @@ import {
   X,
   FileText,
   Calendar,
+  Clock,
 } from 'lucide-react'
 
 interface SidebarLink {
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> =({ isOpen, onClose, currentPath, o
     { icon: <Users size={20} />, label: t('navigation.clients'), href: '/clients' },
     { icon: <Scissors size={20} />, label: 'الحلاقين', href: '/barbers' },
     { icon: <Calendar size={20} />, label: 'الحجوزات', href: '/bookings' },
+    { icon: <Clock size={20} />, label: 'حالة الطابور', href: '/queue' },
     { icon: <Scissors size={20} />, label: t('navigation.services'), href: '/services' },
     { icon: <FileText size={20} />, label: 'السجلات اليومية', href: '/logs' },
     { icon: <DollarSign size={20} />, label: t('navigation.expenses'), href: '/expenses' },

@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { QueueStatus } from '../components/ui/QueueStatus'
 
 interface NewBooking {
   searchQuery: string
@@ -91,42 +92,30 @@ export const Bookings: React.FC = () => {
     for (let hour = workingHours.start; hour < workingHours.end; hour++) {
       for (let min = 0; min < 60; min += intervalMinutes) {
         const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`
-        const timeMs = hour * 60 + min
 
         // Check if time has already passed in real-time
         const slotDateTime = new Date(`${date}T${timeStr}:00+02:00`)
         const timeHasPassed = slotDateTime <= now
 
-        // تحقق من التضاربات (30 دقيقة بافر) - فقط pending/ongoing
+        // تحقق من التضاربات باستخدام المنطق الصحيح
+        // إذا كان الحجز من 10:00-10:30، لا يمكن حجز أي وقت يتداخل
+        const slotStart = slotDateTime.getTime()
+        const slotEnd = slotStart + 30 * 60000 // 30 minute service duration
+
         const hasConflict = dayBookings.some((booking: any) => {
-          const bookingHour = parseInt(booking.bookingTime.split('T')[1].substring(0, 2))
-          const bookingMin = parseInt(booking.bookingTime.split('T')[1].substring(3, 5))
-          const bookingTimeMs = bookingHour * 60 + bookingMin
-          return Math.abs(timeMs - bookingTimeMs) < 30
-        })
+          const bookingStart = new Date(booking.bookingTime).getTime()
+          const bookingEnd = bookingStart + (booking.duration || 30) * 60000
 
-        // تحقق من الحجوزات المكتملة في هذا الوقت
-        const allBookings = getTodayBookings().filter((b: any) => {
-          const isCorrectDate = new Date(b.bookingTime).toLocaleDateString('en-CA') === date
-          const isCorrectBarber = !selectedBarberId || b.barberId === selectedBarberId
-          return isCorrectDate && isCorrectBarber
-        })
-
-        const completedBooking = allBookings.find((booking: any) => {
-          const bookingHour = parseInt(booking.bookingTime.split('T')[1].substring(0, 2))
-          const bookingMin = parseInt(booking.bookingTime.split('T')[1].substring(3, 5))
-          const bookingTimeMs = bookingHour * 60 + bookingMin
-          const timeMatch = Math.abs(timeMs - bookingTimeMs) < 30
-          return timeMatch && booking.status === 'completed'
-        })
-
-        // تحقق من الحجوزات المعلقة في هذا الوقت
-        const pendingBooking = allBookings.find((booking: any) => {
-          const bookingHour = parseInt(booking.bookingTime.split('T')[1].substring(0, 2))
-          const bookingMin = parseInt(booking.bookingTime.split('T')[1].substring(3, 5))
-          const bookingTimeMs = bookingHour * 60 + bookingMin
-          const timeMatch = Math.abs(timeMs - bookingTimeMs) < 30
-          return timeMatch && booking.status !== 'completed' && booking.status !== 'cancelled'
+          // Check overlap: slot starts before booking ends AND slot ends after booking starts
+          const overlap = slotStart < bookingEnd && slotEnd > bookingStart
+          
+          if (overlap) {
+            console.log(
+              `[Conflict] Slot ${timeStr} conflicts with booking at ${new Date(bookingStart).toLocaleTimeString()}`
+            )
+          }
+          
+          return overlap
         })
 
         slots.push({
@@ -137,8 +126,14 @@ export const Bookings: React.FC = () => {
             const bHour = parseInt(b.bookingTime.split('T')[1].substring(0, 2))
             return bHour === hour
           }).length,
-          hasCompletedBooking: !!completedBooking,
-          hasPendingBooking: !!pendingBooking,
+          hasCompletedBooking: !!dayBookings.find((b: any) => {
+            const bookingHour = parseInt(b.bookingTime.split('T')[1].substring(0, 2))
+            return bookingHour === hour && b.status === 'completed'
+          }),
+          hasPendingBooking: !!dayBookings.find((b: any) => {
+            const bookingHour = parseInt(b.bookingTime.split('T')[1].substring(0, 2))
+            return bookingHour === hour && b.status !== 'completed' && b.status !== 'cancelled'
+          }),
         })
       }
     }
@@ -414,6 +409,11 @@ export const Bookings: React.FC = () => {
 
   return (
     <div className="min-h-screen py-8">
+      {/* Queue Status Widget */}
+      <div className="mb-8">
+        <QueueStatus />
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-white">الحجوزات</h1>
@@ -565,7 +565,7 @@ export const Bookings: React.FC = () => {
                           : 'bg-white/10 text-white border-white/20 focus:border-gold-400'
                       }`}
                     >
-                      <option value="pending">في الانتظار</option>
+                      <option value="pending">قيد الانتظار</option>
                       <option value="ongoing">جاري</option>
                       <option value="completed">اكتمل</option>
                       <option value="cancelled">ملغى</option>

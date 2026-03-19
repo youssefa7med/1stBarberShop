@@ -2,7 +2,7 @@
 
 A professional, production-ready barber shop management and point-of-sale (POS) system built with **React + Framer Motion** and powered by **Supabase** (PostgreSQL).
 
-🎨 **Features**: Modern glassmorphism design, Arabic/English localization (i18n), real-time analytics, receipt printing, VIP client tracking, expense management, and more.
+🎨 **Features**: Modern glassmorphism design, Arabic/English localization (i18n), real-time analytics, receipt printing, VIP client tracking, expense management, **real-time queue system**, and more.
 
 🇪🇬 **Designed for Egyptian barbershops** with Egyptian locale defaults (currency: ج.م, phone format, date formatting).
 
@@ -60,7 +60,7 @@ The app will open at `http://localhost:5173`
 src/
 ├── components/
 │   ├── layout/          # Sidebar, Header, Layout wrapper
-│   ├── ui/              # Reusable UI components (GlassCard, Modal, Badge, etc.)
+│   ├── ui/              # Reusable UI components (GlassCard, Modal, Badge, QueueStatus, etc.)
 │   ├── charts/          # Recharts visualizations
 │   └── receipt/         # Receipt printing template
 ├── pages/
@@ -70,12 +70,14 @@ src/
 │   ├── Services.tsx     # Service & pricing management
 │   ├── Expenses.tsx     # Expense tracking
 │   ├── Analytics.tsx    # Revenue & analytics reports
+│   ├── Bookings.tsx     # Advanced booking system with queue status
+│   ├── QueueDisplay.tsx # Full-screen queue display
 │   └── Settings.tsx     # App settings & preferences
 ├── db/
 │   ├── supabase.ts      # Supabase client setup
-│   └── hooks/           # Database hooks (useClients, useServices, etc.)
+│   └── hooks/           # Database hooks (useClients, useServices, useQueueStatus, etc.)
 ├── hooks/               # Custom React hooks (useTheme, useLanguage, etc.)
-├── utils/               # Utility functions (formatting, CSV export, etc.)
+├── utils/               # Utility functions (formatting, CSV export, Egypt time, etc.)
 ├── locales/             # i18next translation files (ar.json, en.json)
 ├── App.tsx              # Main app component with routing
 └── index.css            # Global styles + glassmorphism utilities
@@ -98,6 +100,231 @@ src/
 - **Recent Transactions**: Last 5 sales with details
 - **Birthday Reminders**: Clients with upcoming birthdays
 - **Inactive Alerts**: Clients who haven't visited in 30+ days
+
+### 3. **Bookings & Queue System** — `/bookings` & `/queue` ⭐ **NEW**
+- **Real-time Queue Display**: Shows people ahead, expected wait time, and completion time
+- **Smart Scheduling**: Calculates availability based on barber workload and service duration
+- **Conflict Prevention**: 30-minute buffer to prevent double-booking
+- **Full-Screen Display**: Dedicated page (`/queue`) for waiting area screens
+- **Live Updates**: Updates every second with current time
+- **Arabic & English**: Full bilingual support with proper RTL/LTR directions
+
+#### Queue Features:
+```
+┌─────────────────────────────────┐
+│  أمامك في الدور: 3              │ ← People Ahead
+│  الانتظار المتوقع: 75 دقيقة     │ ← Expected Wait
+│  الوقت المتوقع: 11:30 ص         │ ← Estimated Time
+│  الوقت الحالي: 10:15:45         │ ← Live Clock
+└─────────────────────────────────┘
+```
+
+**Usage:**
+- **Dashboard View**: See queue widget on Bookings page
+- **Full Screen**: Navigate to `/queue` for waiting area display
+- **Smart Calculation**: Automatically sums service durations for accurate wait times
+
+### 4. **Client Management** — `/clients`
+- **CRM System**: Track visit history, total spent, favorite services
+- **VIP Tracking**: Automatic VIP status awarding
+- **Birthday Reminders**: Never miss customer birthdays
+- **Search & Filter**: Quick client lookup and categorization
+
+### 5. **Services Management** — `/services`
+- **Bilingual Service Names**: Arabic and English support
+- **Dynamic Pricing**: Easy price adjustment
+- **Duration Control**: Set expected service duration (for queue calculations)
+- **Bulk Updates**: Update prices in batch
+
+### 6. **Analytics & Reports** — `/analytics`
+- **Revenue Trends**: Daily/monthly revenue visualization
+- **Client Analytics**: Top clients, unique visitors
+- **Payment Breakdown**: Cash vs Card vs E-Wallet statistics
+- **Export Options**: CSV and PDF reports
+
+### 7. **Expense Management** — `/expenses`
+- **Category Tracking**: Supplies, rent, utilities, salary, maintenance
+- **Monthly Summary**: Total expenses by category
+- **Date Filtering**: Track expenses over time periods
+
+### 8. **Settings & Configuration** — `/settings`
+- **Barbershop Profile**: Name, logo, address, phone
+- **Display Preferences**: Theme (dark/light), language (Arabic/English)
+- **VIP Configuration**: Define VIP threshold (visits or amount)
+- **Barber Management**: Add/edit barber profiles
+- **Data Management**: Export/import/reset system data
+
+---
+
+## 🌍 Language Support
+
+### Arabic (العربية)
+- Full RTL support
+- Proper text alignment
+- Egyptian locale (EGY)
+- All features translated
+
+### English
+- Full LTR support
+- All features translated
+
+**Switch languages** in Settings (top-right corner)
+
+---
+
+## 🟡 Recent Improvements & Fixes
+
+### ✅ Quality Enhancements (March 2026)
+1. **Fixed Logic Error** in queue percentage calculation - now accurate
+2. **Standardized Arabic Translations** - consistent throughout system
+3. **Added Missing Translations** - complete i18n coverage
+4. **System Quality Report** - comprehensive audit completed
+5. **Queue System Optimization** - improved performance and accuracy
+
+See `SYSTEM_QUALITY_REPORT.md` for detailed findings.
+
+---
+
+## 📊 Database Schema
+
+### Main Tables:
+- **clients** - Customer profiles and history
+- **services** - Available services with pricing and duration
+- **transactions** - Sales records
+- **expenses** - Expense tracking
+- **bookings** - Appointment scheduling (NEW)
+- **barbers** - Barber/staff profiles
+- **settings** - System configuration
+
+---
+
+## 🔐 Security Features
+
+- ✅ Row-level security (RLS) enabled on Supabase
+- ✅ Environment variables for sensitive data
+- ✅ Authentication ready (can add auth module)
+- ✅ Data validation on frontend and backend
+
+---
+
+## 📚 Additional Documentation
+
+### Queue System (NEW)
+- **[QUEUE_SYSTEM_DOCS.md](QUEUE_SYSTEM_DOCS.md)** - Complete technical documentation
+- **[QUEUE_QUICK_START.md](QUEUE_QUICK_START.md)** - Quick reference guide
+- **[QUEUE_REFERENCE_GUIDE.md](QUEUE_REFERENCE_GUIDE.md)** - Visual and technical reference
+
+### General Documentation
+- **[BOOKING_SYSTEM_README.md](BOOKING_SYSTEM_README.md)** - Booking system details
+- **[SYSTEM_QUALITY_REPORT.md](SYSTEM_QUALITY_REPORT.md)** - Quality audit report
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, TypeScript, Framer Motion |
+| **Styling** | Tailwind CSS, Glassmorphism |
+| **Database** | Supabase (PostgreSQL) |
+| **Internationalization** | i18next |
+| **Charts** | Recharts |
+| **Printing** | React-to-Print |
+| **Notifications** | React Hot Toast |
+| **Build** | Vite, PostCSS |
+
+---
+
+## 🚀 Deployment
+
+### Build for Production
+```bash
+npm run build
+```
+
+### Preview Production Build
+```bash
+npm run preview
+```
+
+### Deploy to Vercel
+Configuration included in `vercel.json`
+
+```bash
+npm install -g vercel
+vercel
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Queue Not Updating
+- Ensure bookings are created with correct status (pending/ongoing)
+- Check that booking times are in the future
+- Refresh page if needed
+
+### Translations Not Showing
+- Verify locale files in `src/locales/`
+- Check language selection in Settings
+- Browser cache may need clearing
+
+### Database Connection Issues
+- Verify Supabase credentials in `.env.local`
+- Check Supabase project is active
+- Ensure schema is properly imported
+
+---
+
+## 📋 Feature Checklist
+
+### Implemented ✅
+- [x] POS System
+- [x] Client Management
+- [x] Service Management
+- [x] Analytics & Reports
+- [x] Expense Tracking
+- [x] Booking System with Smart Scheduling
+- [x] Real-time Queue Display
+- [x] Arabic/English Support
+- [x] Receipt Printing
+- [x] VIP Tracking
+- [x] Dark/Light Theme
+
+### Planned 🔮
+- [ ] SMS/Email Notifications
+- [ ] WhatsApp Integration
+- [ ] Staff Commission Tracking
+- [ ] Inventory Management
+- [ ] Video/Photo Gallery
+- [ ] Customer Portal
+- [ ] Mobile App (React Native)
+- [ ] Audio Alerts for Queue
+
+---
+
+## 📞 Support & Feedback
+
+For issues, bugs, or feature requests, create an issue in the repository.
+
+---
+
+## 📄 License
+
+This project is provided as-is for commercial use in Egyptian barbershops.
+
+---
+
+## 🎉 Credits
+
+Built with ❤️ for Egyptian barbershops  
+**Made in Egypt 🇪🇬**
+
+---
+
+**Last Updated:** March 19, 2026  
+**Version:** 2.0.0 (with Queue System)  
+**Status:** Production Ready ✅
 
 ### 3. **Client Management** — `/clients`
 - Search & filter (by name, phone, VIP status)

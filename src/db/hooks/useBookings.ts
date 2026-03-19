@@ -200,10 +200,16 @@ export const useBookings = () => {
   }
 
   /**
-   * Check if time slot is available
+   * Check if time slot is available - with proper conflict detection
+   * المنطق الصحيح: لا يمكن تداخل الحجزات
+   *   إذا كان هناك حجز من 10:00-10:30
+   *   لا يمكن حجز أي وقت يتداخل معه قبل 10:30
    */
-  const isTimeSlotAvailable = (bookingTime: string, barberId?: string): boolean => {
-    const timeWindow = 15 * 60000 // 15 minute window
+  const isTimeSlotAvailable = (
+    bookingTime: string, 
+    barberId?: string,
+    duration: number = 30
+  ): boolean => {
     const now = new Date()
 
     // Check if the time has already passed
@@ -211,19 +217,26 @@ export const useBookings = () => {
       return false
     }
 
+    const requestStart = new Date(bookingTime).getTime()
+    const requestEnd = requestStart + duration * 60000 // Convert minutes to ms
+
     const conflictingBooking = bookings.find((b) => {
-      // استبعد الحجوزات المكتملة والملغاة
+      // استبعد الحجوزات المكتملة والملغاة - لا تحجز الوقت
       if (b.status === 'cancelled' || b.status === 'completed') return false
 
-      const bookingTimeMs = new Date(b.bookingTime).getTime()
-      const requestTimeMs = new Date(bookingTime).getTime()
-      const timeDiff = Math.abs(bookingTimeMs - requestTimeMs)
+      // If barberId is specified, only check that barber
+      if (barberId && b.barberId !== barberId) return false
 
-      if (barberId && b.barberId) {
-        return b.barberId === barberId && timeDiff < timeWindow
-      }
+      const bookingStart = new Date(b.bookingTime).getTime()
+      const bookingEnd = bookingStart + (b.duration || 30) * 60000 // Use actual booking duration
 
-      return timeDiff < timeWindow
+      // Check for overlap: 
+      // Conflict if: requestStart < bookingEnd AND requestEnd > bookingStart
+      const hasOverlap = requestStart < bookingEnd && requestEnd > bookingStart
+      
+      console.log(`[Conflict Check] Request: ${new Date(requestStart).toLocaleTimeString()} - ${new Date(requestEnd).toLocaleTimeString()} | Booking: ${new Date(bookingStart).toLocaleTimeString()} - ${new Date(bookingEnd).toLocaleTimeString()} | Overlap: ${hasOverlap}`)
+      
+      return hasOverlap
     })
 
     return !conflictingBooking
@@ -238,9 +251,28 @@ export const useBookings = () => {
         throw new Error('bookingTime is required and cannot be empty')
       }
 
-      // Check if time slot is available
-      if (!isTimeSlotAvailable(booking.bookingTime, booking.barberId)) {
+      // Check if time slot is available with correct duration
+      if (!isTimeSlotAvailable(booking.bookingTime, booking.barberId, booking.duration)) {
         const errorMsg = 'هذا الموعد محجوز بالفعل. اختر موعد آخر'
+        toast.error(errorMsg)
+        throw new Error(errorMsg)
+      }
+
+      // Check for duplicate client booking in same time window
+      const clientConflict = bookings.find((b) => {
+        if (b.status === 'cancelled' || b.status === 'completed') return false
+        
+        const requestStart = new Date(booking.bookingTime).getTime()
+        const requestEnd = requestStart + (booking.duration || 30) * 60000
+        const bookingStart = new Date(b.bookingTime).getTime()
+        const bookingEnd = bookingStart + (b.duration || 30) * 60000
+
+        const hasOverlap = requestStart < bookingEnd && requestEnd > bookingStart
+        return b.clientPhone === booking.clientPhone && hasOverlap
+      })
+
+      if (clientConflict) {
+        const errorMsg = 'هذا العميل لديه حجز آخر في نفس الوقت تقريباً'
         toast.error(errorMsg)
         throw new Error(errorMsg)
       }
@@ -299,6 +331,40 @@ export const useBookings = () => {
     updates: Partial<Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>>
   ) => {
     try {
+      // Get the current booking
+      const currentBooking = bookings.find(b => b.id === id)
+      if (!currentBooking) {
+        throw new Error('الحجز غير موجود')
+      }
+
+      // If time or barber is being changed, check for conflicts
+      if (updates.bookingTime || updates.barberId) {
+        const newBookingTime = updates.bookingTime || currentBooking.bookingTime
+        const newBarberId = updates.barberId || currentBooking.barberId
+        const newDuration = updates.duration || currentBooking.duration
+
+        // Create a temporary list excluding the current booking being updated
+        const tempBookings = bookings.filter(b => b.id !== id)
+        
+        // Check for conflicts with other bookings
+        const requestStart = new Date(newBookingTime).getTime()
+        const requestEnd = requestStart + (newDuration || 30) * 60000
+
+        const conflictingBooking = tempBookings.find((b) => {
+          if (b.status === 'cancelled' || b.status === 'completed') return false
+          if (newBarberId && b.barberId !== newBarberId) return false
+
+          const bookingStart = new Date(b.bookingTime).getTime()
+          const bookingEnd = bookingStart + (b.duration || 30) * 60000
+
+          return requestStart < bookingEnd && requestEnd > bookingStart
+        })
+
+        if (conflictingBooking) {
+          throw new Error('هذا الموعد محجوز بالفعل للحلاق المحدد')
+        }
+      }
+
       // Convert camelCase to lowercase for PostgreSQL
       const dbUpdates: any = {}
       Object.entries(updates).forEach(([key, value]) => {
