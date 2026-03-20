@@ -23,6 +23,8 @@ import { QueueDisplay } from './pages/QueueDisplay'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { AdminShops } from './pages/AdminShops'
 import { AdminPlans } from './pages/AdminPlans'
+import { AdminBilling } from './pages/AdminBilling'
+import { ShopBilling } from './pages/ShopBilling'
 
 /**
  * AdminRoute Component
@@ -226,6 +228,16 @@ function App() {
               </ShopRoute>
             }
           />
+          <Route
+            path="/billing"
+            element={
+              <ShopRoute>
+                <Layout>
+                  <ShopBilling />
+                </Layout>
+              </ShopRoute>
+            }
+          />
 
           {/* Admin Routes */}
           <Route
@@ -254,6 +266,16 @@ function App() {
               <AdminRoute>
                 <Layout>
                   <AdminPlans />
+                </Layout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/billing"
+            element={
+              <AdminRoute>
+                <Layout>
+                  <AdminBilling />
                 </Layout>
               </AdminRoute>
             }
