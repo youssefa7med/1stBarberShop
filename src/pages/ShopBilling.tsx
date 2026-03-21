@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { getEgyptYearMonth } from '@/utils/egyptTime'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react'
@@ -87,19 +88,18 @@ export const ShopBilling = () => {
 
       setShopData(shop)
 
-      // Get current month usage
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      // Get current month usage (using Egypt timezone)
+      const currentYearMonth = getEgyptYearMonth()
 
-      const { count: monthCount } = await supabase
+      const { data: currentMonthLogs } = await supabase
         .from('usage_logs')
-        .select('id', { count: 'exact', head: true })
+        .select('quantity, billable_amount')
         .eq('shop_id', shopId!)
-        .gte('created_at', monthStart.toISOString())
-        .lte('created_at', monthEnd.toISOString())
+        .eq('year_month', currentYearMonth)
 
-      const monthUsage = monthCount || 0
+      const monthUsage = currentMonthLogs?.reduce((sum, log) => sum + (log.quantity || 0), 0) || 0
+      const currentMonthBillable = currentMonthLogs?.reduce((sum, log) => sum + (log.billable_amount || 0), 0) || 0
+      
       setCurrentMonthUsage(monthUsage)
 
       // Calculate estimated bill
@@ -109,27 +109,28 @@ export const ShopBilling = () => {
         if (plan.pricing_type === 'quota') {
           bill = plan.monthly_price || 0
         } else {
-          bill = monthUsage * (plan.price_per_unit || 0)
+          bill = currentMonthBillable
         }
         setEstimatedBill(bill)
       }
 
       // Get last 6 months usage
       const monthsData: UsageData[] = []
+      const now = new Date()
       for (let i = 5; i >= 0; i--) {
-        const targetMonth = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const targetMonthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const targetYearMonth = String(targetDate.getFullYear()) + '-' + String(targetDate.getMonth() + 1).padStart(2, '0')
 
-        const { count } = await supabase
+        const { data: logs } = await supabase
           .from('usage_logs')
-          .select('id', { count: 'exact', head: true })
+          .select('quantity')
           .eq('shop_id', shopId!)
-          .gte('created_at', targetMonth.toISOString())
-          .lte('created_at', targetMonthEnd.toISOString())
+          .eq('year_month', targetYearMonth)
 
+        const usage = logs?.reduce((sum, log) => sum + (log.quantity || 0), 0) || 0
         monthsData.push({
-          month: `${targetMonth.getMonth() + 1}/${targetMonth.getFullYear()}`,
-          usage: count || 0,
+          month: `${targetDate.getMonth() + 1}/${targetDate.getFullYear()}`,
+          usage: usage,
         })
       }
 
@@ -146,9 +147,14 @@ export const ShopBilling = () => {
   const getDaysLeft = () => {
     if (!shopData?.subscription_end_date) return null
 
-    const endDate = new Date(shopData.subscription_end_date)
-    const today = new Date()
-    const diff = endDate.getTime() - today.getTime()
+    const endDate = shopData.subscription_end_date // YYYY-MM-DD
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' }) // YYYY-MM-DD
+    
+    if (endDate < today) return 0 // Already expired
+    
+    const end = new Date(endDate)
+    const current = new Date(today)
+    const diff = end.getTime() - current.getTime()
     const days = Math.ceil(diff / (1000 * 3600 * 24))
 
     return days

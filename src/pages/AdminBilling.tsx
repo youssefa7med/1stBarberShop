@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/db/supabase'
+import { getEgyptYearMonth } from '@/utils/egyptTime'
 import toast from 'react-hot-toast'
 import { Download } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -34,10 +35,8 @@ export const AdminBilling = () => {
     try {
       setLoading(true)
 
-      // Get current month start and end
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      // Get current month in Egypt timezone (YYYY-MM format)
+      const yearMonth = getEgyptYearMonth()
 
       // Fetch all shops with their plans
       const { data: shopsData, error: shopsError } = await supabase
@@ -64,31 +63,16 @@ export const AdminBilling = () => {
       let totalAmount = 0
 
       for (const shop of shopsData || []) {
-        // Get usage count for this month
-        const { count } = await supabase
+        // Get usage for current month (using year_month field)
+        const { data: usageLogs } = await supabase
           .from('usage_logs')
-          .select('id', { count: 'exact', head: true })
+          .select('billable_amount, quantity')
           .eq('shop_id', shop.id)
-          .gte('created_at', monthStart.toISOString())
-          .lte('created_at', monthEnd.toISOString())
+          .eq('year_month', yearMonth)
 
-        const actualUsageCount = count || 0
-
-        // Calculate billable amount
-        let billableAmount = 0
-        let isOverQuota = false
-
-        if (shop.plans) {
-          const plan = shop.plans[0] || null
-          if (plan) {
-            if (plan.pricing_type === 'quota') {
-              billableAmount = plan.monthly_price || 0
-              isOverQuota = actualUsageCount > (plan.quota_limit || 0)
-            } else {
-              billableAmount = (actualUsageCount || 0) * (plan.price_per_unit || 0)
-            }
-          }
-        }
+        const actualUsageCount = usageLogs?.reduce((sum, log) => sum + (log.quantity || 0), 0) || 0
+        const totalBillable = usageLogs?.reduce((sum, log) => sum + (log.billable_amount || 0), 0) || 0
+        const isOverQuota = shop.plans?.[0]?.quota_limit ? actualUsageCount > shop.plans[0].quota_limit : false
 
         billingData.push({
           shop_id: shop.id,
@@ -103,11 +87,11 @@ export const AdminBilling = () => {
           monthly_price: shop.plans?.[0]?.monthly_price || null,
           quota_limit: shop.plans?.[0]?.quota_limit || null,
           usage_count: actualUsageCount,
-          billable_amount: billableAmount,
+          billable_amount: totalBillable,
           is_over_quota: isOverQuota,
         })
 
-        totalAmount += billableAmount
+        totalAmount += totalBillable
       }
 
       setBillings(billingData)

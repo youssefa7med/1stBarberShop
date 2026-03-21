@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
+import { getEgyptYearMonth } from '@/utils/egyptTime'
 import toast from 'react-hot-toast'
 import { ArrowUpRight, Users, TrendingUp, DollarSign, Plus, Eye } from 'lucide-react'
 import { formatCurrency } from '@/utils/formatCurrency'
@@ -46,17 +47,14 @@ export const AdminDashboard = () => {
       // Get 5 most recent shops
       setRecentShops((shops || []).slice(0, 5))
 
-      // Get current month start and end
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      // Get current month in Egypt timezone (YYYY-MM format)
+      const yearMonth = getEgyptYearMonth()
 
       // Get monthly revenue (sum of billable amounts from all shops this month)
       const { data: monthlyUsageLogs, error: monthlyError } = await supabase
         .from('usage_logs')
         .select('billable_amount')
-        .gte('created_at', monthStart.toISOString())
-        .lte('created_at', monthEnd.toISOString())
+        .eq('year_month', yearMonth)
 
       if (monthlyError) throw monthlyError
 

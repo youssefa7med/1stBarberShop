@@ -53,10 +53,15 @@ export const useVisitLogs = () => {
 
   const addVisitLog = async (log: Omit<VisitLog, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      if (!shopId) {
+        throw new Error('Shop ID is required')
+      }
+
       const { data, error } = await supabase
         .from('visit_logs')
         .insert({
           ...log,
+          shop_id: shopId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
@@ -73,9 +78,14 @@ export const useVisitLogs = () => {
 
   const getClientVisitLogs = async (clientId: string) => {
     try {
+      if (!shopId) {
+        return []
+      }
+      
       const { data, error } = await supabase
         .from('visit_logs')
         .select('*')
+        .eq('shop_id', shopId)
         .eq('clientId', clientId)
         .order('visitDate', { ascending: false })
 

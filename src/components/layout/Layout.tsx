@@ -16,7 +16,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPath, onNavigat
   const location = useLocation()
   const { shopId, role } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'inactive' | 'suspended' | 'expired' | null>(null)
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'inactive' | 'suspended' | 'expired'>()
 
   // Use react-router's location if not provided as props
   const activePath = currentPath || location.pathname

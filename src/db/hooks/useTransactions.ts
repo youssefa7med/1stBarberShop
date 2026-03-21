@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase, Transaction } from '../supabase'
-import { getEgyptDateString } from '../../utils/egyptTime'
+import { getEgyptDateString, getEgyptYearMonth } from '../../utils/egyptTime'
 import toast from 'react-hot-toast'
 
 export const useTransactions = () => {
@@ -60,7 +60,7 @@ export const useTransactions = () => {
 
       const transactionId = data?.[0]?.id
       if (transactionId) {
-        // ✅ Log usage for billing purposes
+        // ✅ Log usage for billing purposes (using Egypt timezone)
         await supabase
           .from('usage_logs')
           .insert({
@@ -69,7 +69,7 @@ export const useTransactions = () => {
             quantity: 1,
             reference_id: transactionId,
             billable_amount: transaction.total || 0,
-            year_month: new Date().toISOString().substring(0, 7), // YYYY-MM
+            year_month: getEgyptYearMonth(), // YYYY-MM in Egypt timezone
           })
           .throwOnError()
       }

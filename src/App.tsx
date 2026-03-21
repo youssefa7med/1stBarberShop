@@ -5,7 +5,6 @@ import { useTheme } from './hooks/useTheme'
 import { useLanguage } from './hooks/useLanguage'
 import { useAuth } from './hooks/useAuth'
 import { checkSubscriptionStatus } from './utils/subscriptionChecker'
-import { SubscriptionGuard } from './components/subscription/SubscriptionGuard'
 import { seedSampleData } from './utils/seedData'
 
 // Pages
@@ -68,10 +67,9 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
  * - INACTIVE: view-only access
  * - SUSPENDED/EXPIRED: blocked, redirect to /billing
  */
-function ShopRoute({ children, allowInactive = true }: { children: React.ReactNode; allowInactive?: boolean }) {
+function ShopRoute({ children }: { children: React.ReactNode }) {
   const { loading, role, shopId } = useAuth()
   const navigate = useNavigate()
-  const [subscription, setSubscription] = useState<any>(null)
   const [checkLoading, setCheckLoading] = useState(true)
   const location = useLocation()
 
@@ -87,7 +85,6 @@ function ShopRoute({ children, allowInactive = true }: { children: React.ReactNo
 
       try {
         const status = await checkSubscriptionStatus(shopId)
-        setSubscription(status)
 
         // Redirect suspended/expired users to billing
         if (status.status === 'suspended' || status.status === 'expired') {

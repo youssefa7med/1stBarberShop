@@ -1,4 +1,5 @@
 import { supabase } from '@/db/supabase'
+import { getEgyptDateString, getEgyptYearMonth } from './egyptTime'
 
 export interface SubscriptionStatus {
   isActive: boolean
@@ -12,7 +13,7 @@ export interface SubscriptionStatus {
 }
 
 /**
- * Auto-expire subscriptions that have passed their end date
+ * Auto-expire subscriptions that have passed their end date (using Egypt timezone)
  */
 export const autoExpireSubscriptions = async (shopId: string): Promise<void> => {
   try {
@@ -25,9 +26,10 @@ export const autoExpireSubscriptions = async (shopId: string): Promise<void> => 
     if (fetchError) throw fetchError
     if (!shop) return
 
-    const endDate = shop.subscription_end_date ? new Date(shop.subscription_end_date) : null
-    const now = new Date()
-    const isExpired = endDate && endDate < now
+    // Use Egypt timezone for comparison
+    const endDate = shop.subscription_end_date // format: YYYY-MM-DD
+    const today = getEgyptDateString() // YYYY-MM-DD in Egypt timezone
+    const isExpired = endDate && endDate < today
 
     // If subscription has expired and status is still 'active', update it to 'expired'
     if (isExpired && shop.subscription_status === 'active') {
@@ -78,11 +80,19 @@ export const checkSubscriptionStatus = async (
     if (!shop) throw new Error('Shop not found')
 
     const plan = shop.plans as any
-    const endDate = shop.subscription_end_date ? new Date(shop.subscription_end_date) : null
-    const now = new Date()
-    const daysRemaining = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0
+    const endDate = shop.subscription_end_date // YYYY-MM-DD format
+    const today = getEgyptDateString() // YYYY-MM-DD in Egypt timezone
+    
+    // Calculate days remaining by comparing date strings
+    let daysRemaining = 0
+    if (endDate && endDate >= today) {
+      const end = new Date(endDate)
+      const current = new Date(today)
+      daysRemaining = Math.ceil((end.getTime() - current.getTime()) / (1000 * 60 * 60 * 24))
+    }
+    
     const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
-    const isExpired = endDate ? endDate < now : false
+    const isExpired = endDate ? endDate < today : false
 
     // Calculate quota usage for quota plans
     let quotaUsed = 0
@@ -90,11 +100,8 @@ export const checkSubscriptionStatus = async (
     let usagePercentage = 0
 
     if (plan?.pricing_type === 'quota') {
-      // Get current month's usage
-      const now = new Date()
-      const year = now.getFullYear()
-      const month = String(now.getMonth() + 1).padStart(2, '0')
-      const yearMonth = `${year}-${month}`
+      // Get current month's usage (using Egypt timezone)
+      const yearMonth = getEgyptYearMonth()
 
       const { data: usageLogs, error: usageError } = await supabase
         .from('usage_logs')

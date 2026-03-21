@@ -146,3 +146,20 @@ export const parseAsDatabaseDate = (dateString: string): string => {
   // This function ensures we're treating them correctly
   return dateString
 }
+
+/**
+ * Get current year and month in Egypt timezone as YYYY-MM format
+ * Used for billing period and usage_logs year_month field
+ */
+export const getEgyptYearMonth = (date: Date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat('en-EG', {
+    year: 'numeric',
+    month: '2-digit',
+    timeZone: EGYPT_TIMEZONE,
+  }).formatToParts(date)
+  
+  const year = parts.find(p => p.type === 'year')?.value
+  const month = parts.find(p => p.type === 'month')?.value
+  
+  return `${year}-${month}`
+}
