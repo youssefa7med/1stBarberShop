@@ -131,6 +131,15 @@ export const Barbers: React.FC = () => {
     }
   }
 
+  const handleToggleActive = async (id: string, currentActive: boolean) => {
+    try {
+      await updateBarber(id, { active: !currentActive })
+      toast.success(!currentActive ? 'تم تفعيل الحلاق' : 'تم تعطيل الحلاق')
+    } catch (err) {
+      toast.error(t('errors.database_error'))
+    }
+  }
+
   const openAddModal = () => {
     setEditingBarberId(null)
     setFormData({ name: '', phone: '' })
@@ -232,11 +241,13 @@ export const Barbers: React.FC = () => {
                           <p className="text-gray-400 text-sm mt-1">📱 {barber.phone}</p>
                         )}
                       </div>
-                      <div className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                        barber.active 
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-gray-500/20 text-gray-300'
-                      }`}>
+                      <div 
+                        onClick={() => handleToggleActive(barber.id!, barber.active)}
+                        className={`px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap cursor-pointer transition hover:opacity-80 ${
+                          barber.active 
+                            ? 'bg-green-500/20 text-green-300'
+                            : 'bg-gray-500/20 text-gray-300'
+                        }`}>
                         {barber.active ? 'نشط' : 'غير نشط'}
                       </div>
                     </div>

@@ -81,8 +81,8 @@ export const ShopBilling = () => {
         subscription_status: shopsData.subscription_status,
         subscription_end_date: shopsData.subscription_end_date,
         plan_id: shopsData.plan_id,
-        plan: shopsData.plans && Array.isArray(shopsData.plans) && shopsData.plans.length > 0 
-          ? shopsData.plans[0] 
+        plan: shopsData.plans 
+          ? (Array.isArray(shopsData.plans) ? shopsData.plans[0] : shopsData.plans)
           : null,
       }
 
