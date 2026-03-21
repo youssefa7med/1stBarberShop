@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useTheme } from './hooks/useTheme'
 import { useLanguage } from './hooks/useLanguage'
 import { useAuth } from './hooks/useAuth'
+import { checkSubscriptionStatus } from './utils/subscriptionChecker'
+import { SubscriptionGuard } from './components/subscription/SubscriptionGuard'
 import { seedSampleData } from './utils/seedData'
 
 // Pages
@@ -61,14 +63,47 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 /**
  * ShopRoute Component
  * 
- * Wraps shop-owner routes
- * - Redirects to /admin if user is admin
- * - Redirects to /login if not authenticated
+ * Wraps shop-owner routes with subscription enforcement:
+ * - ACTIVE: full access
+ * - INACTIVE: view-only access
+ * - SUSPENDED/EXPIRED: blocked, redirect to /billing
  */
-function ShopRoute({ children }: { children: React.ReactNode }) {
-  const { loading, role } = useAuth()
+function ShopRoute({ children, allowInactive = true }: { children: React.ReactNode; allowInactive?: boolean }) {
+  const { loading, role, shopId } = useAuth()
+  const navigate = useNavigate()
+  const [subscription, setSubscription] = useState<any>(null)
+  const [checkLoading, setCheckLoading] = useState(true)
+  const location = useLocation()
 
-  if (loading) {
+  // Always allow /billing route regardless of subscription status
+  const isBillingRoute = location.pathname === '/billing' || location.pathname === '/shop-billing'
+
+  useEffect(() => {
+    const checkSub = async () => {
+      if (role !== 'shop' || !shopId || isBillingRoute) {
+        setCheckLoading(false)
+        return
+      }
+
+      try {
+        const status = await checkSubscriptionStatus(shopId)
+        setSubscription(status)
+
+        // Redirect suspended/expired users to billing
+        if (status.status === 'suspended' || status.status === 'expired') {
+          navigate('/billing', { replace: true })
+        }
+      } catch (error) {
+        console.error('Error checking subscription:', error)
+      } finally {
+        setCheckLoading(false)
+      }
+    }
+
+    checkSub()
+  }, [shopId, role, isBillingRoute, navigate])
+
+  if (loading || checkLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">

@@ -12,12 +12,49 @@ export interface SubscriptionStatus {
 }
 
 /**
+ * Auto-expire subscriptions that have passed their end date
+ */
+export const autoExpireSubscriptions = async (shopId: string): Promise<void> => {
+  try {
+    const { data: shop, error: fetchError } = await supabase
+      .from('shops')
+      .select('subscription_status, subscription_end_date')
+      .eq('id', shopId)
+      .single()
+
+    if (fetchError) throw fetchError
+    if (!shop) return
+
+    const endDate = shop.subscription_end_date ? new Date(shop.subscription_end_date) : null
+    const now = new Date()
+    const isExpired = endDate && endDate < now
+
+    // If subscription has expired and status is still 'active', update it to 'expired'
+    if (isExpired && shop.subscription_status === 'active') {
+      const { error: updateError } = await supabase
+        .from('shops')
+        .update({ subscription_status: 'expired' })
+        .eq('id', shopId)
+
+      if (updateError) throw updateError
+      console.log(`✅ Shop ${shopId} automatically expired`)
+    }
+  } catch (error) {
+    console.error('Error auto-expiring subscription:', error)
+    // Don't throw - this is a background operation
+  }
+}
+
+/**
  * Check subscription status for a shop
  */
 export const checkSubscriptionStatus = async (
   shopId: string
 ): Promise<SubscriptionStatus> => {
   try {
+    // First, auto-expire if needed
+    await autoExpireSubscriptions(shopId)
+
     // Get shop details
     const { data: shop, error: shopError } = await supabase
       .from('shops')
@@ -79,6 +116,8 @@ export const checkSubscriptionStatus = async (
       status = 'expired'
     } else if (shop.subscription_status === 'inactive') {
       status = 'inactive'
+    } else if (isExpiringSoon) {
+      status = 'active' // Still active, but alert will be shown
     } else if (plan?.pricing_type === 'quota' && quotaUsed >= quotaLimit) {
       status = 'suspended' // Quota exceeded
     }

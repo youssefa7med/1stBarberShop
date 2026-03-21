@@ -32,13 +32,16 @@ interface SidebarProps {
   onClose: () => void
   currentPath: string
   onNavigate?: (path: string) => void
+  subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'expired'
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPath }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPath, subscriptionStatus }) => {
   const { t } = useTranslation()
   const { language } = useLanguage()
   const { role } = useAuth()
   const navigate = useNavigate()
+
+  const isReadOnly = subscriptionStatus === 'inactive' && role === 'shop'
 
   const shopLinks: SidebarLink[] = [
     { icon: <Home size={20} />, label: t('navigation.dashboard'), href: '/dashboard' },
@@ -70,6 +73,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPath }
   }
 
   const isActive = (path: string) => currentPath === path
+  
+  const isLinkDisabled = (path: string) => {
+    return isReadOnly && path !== '/billing'
+  }
 
   return (
     <>
@@ -108,25 +115,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPath }
             </button>
           </div>
 
+          {/* Read-only Mode Indicator */}
+          {isReadOnly && (
+            <div className="bg-yellow-500/15 border border-yellow-500/30 rounded-lg px-4 py-2 mb-4">
+              <p className="text-yellow-400 text-sm font-medium">
+                {language === 'ar' ? 'وضع القراءة فقط' : 'Read-only mode'}
+              </p>
+            </div>
+          )}
+
           {/* Navigation Links */}
-          {links.map((link, index) => (
-            <motion.button
-              key={link.href}
-              onClick={() => handleNavigate(link.href)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 font-medium ${
-                isActive(link.href)
-                  ? 'bg-gold-400/15 text-gold-400 border border-gold-400/30'
-                  : 'text-gray-300 hover:text-white hover:bg-white/5'
-              }`}
-              whileHover={{ x: language === 'ar' ? -4 : 4 }}
-              initial={{ opacity: 0, x: language === 'ar' ? 20 : -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              {link.icon}
-              <span>{link.label}</span>
-            </motion.button>
-          ))}
+          {links.map((link, index) => {
+            const disabled = isLinkDisabled(link.href)
+            
+            return (
+              <motion.button
+                key={link.href}
+                onClick={() => !disabled && handleNavigate(link.href)}
+                title={disabled ? (language === 'ar' ? 'تحديث الاشتراك مطلوب' : 'Subscription update required') : ''}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 font-medium group relative ${
+                  disabled
+                    ? 'text-gray-500 opacity-50 cursor-not-allowed'
+                    : isActive(link.href)
+                    ? 'bg-gold-400/15 text-gold-400 border border-gold-400/30'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                whileHover={!disabled ? { x: language === 'ar' ? -4 : 4 } : {}}
+                initial={{ opacity: 0, x: language === 'ar' ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                disabled={disabled}
+              >
+                {link.icon}
+                <span>{link.label}</span>
+                
+                {/* Lock indicator for disabled links */}
+                {disabled && (
+                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 flex items-center justify-center">
+                    <span className="text-xs text-gray-300 text-center px-2">
+                      {language === 'ar' ? 'اتصل بالمسؤول' : 'Contact admin'}
+                    </span>
+                  </div>
+                )}
+              </motion.button>
+            )
+          })}
         </div>
       </motion.aside>
     </>
