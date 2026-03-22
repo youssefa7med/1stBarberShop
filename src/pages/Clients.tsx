@@ -7,8 +7,10 @@ import { useClients } from '../db/hooks/useClients'
 import { useVisitLogs, VisitLog } from '../db/hooks/useVisitLogs'
 import { Client } from '../db/supabase'
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Plus, Calendar, Clock } from 'lucide-react'
+import { Trash2, Edit2, Plus, Calendar, Clock, Filter } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+type SortBy = 'name' | 'visits' | 'spent' | 'recent'
 
 export const Clients: React.FC = () => {
   const { t } = useTranslation()
@@ -23,6 +25,11 @@ export const Clients: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [formData, setFormData] = useState({ name: '', phone: '', birthday: '' })
   const [editFormData, setEditFormData] = useState({ name: '', phone: '', birthday: '' })
+
+  // Filter states
+  const [vipFilter, setVipFilter] = useState<'all' | 'vip' | 'regular'>('all')
+  const [birthdayMonth, setBirthdayMonth] = useState<string>('')
+  const [sortBy, setSortBy] = useState<SortBy>('recent')
 
   // Fetch visit logs when opening detail modal
   useEffect(() => {
@@ -112,9 +119,39 @@ export const Clients: React.FC = () => {
     setIsDetailModalOpen(true)
   }
 
-  const filteredClients = searchQuery
-    ? clients.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery))
-    : clients
+  const filteredClients = clients
+    .filter((c) => {
+      // Search filter
+      if (searchQuery) {
+        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery)
+        if (!matchesSearch) return false
+      }
+
+      // VIP filter
+      if (vipFilter === 'vip' && !c.isVIP) return false
+      if (vipFilter === 'regular' && c.isVIP) return false
+
+      // Birthday month filter
+      if (birthdayMonth) {
+        if (!c.birthday) return false
+        const birthMonth = new Date(c.birthday).getMonth() + 1
+        if (birthMonth !== parseInt(birthdayMonth)) return false
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'visits':
+          return b.totalVisits - a.totalVisits
+        case 'spent':
+          return b.totalSpent - a.totalSpent
+        case 'recent':
+          return 0 // Keep original order
+      }
+    })
 
   return (
     <div className="space-y-6">
@@ -141,6 +178,90 @@ export const Clients: React.FC = () => {
           className="w-full"
         />
       </GlassCard>
+
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-4"
+      >
+        <div className="flex items-center gap-2 text-white font-bold mb-3">
+          <Filter size={20} />
+          تصفية النتائج
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* VIP Filter */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">الحالة</label>
+            <select
+              value={vipFilter}
+              onChange={(e) => setVipFilter(e.target.value as any)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm"
+            >
+              <option value="all">الكل</option>
+              <option value="vip">VIP فقط</option>
+              <option value="regular">عملاء عاديين</option>
+            </select>
+          </div>
+
+          {/* Birthday Month Filter */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">شهر الميلاد</label>
+            <select
+              value={birthdayMonth}
+              onChange={(e) => setBirthdayMonth(e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm"
+            >
+              <option value="">جميع الأشهر</option>
+              <option value="1">يناير</option>
+              <option value="2">فبراير</option>
+              <option value="3">مارس</option>
+              <option value="4">أبريل</option>
+              <option value="5">مايو</option>
+              <option value="6">يونيو</option>
+              <option value="7">يوليو</option>
+              <option value="8">أغسطس</option>
+              <option value="9">سبتمبر</option>
+              <option value="10">أكتوبر</option>
+              <option value="11">نوفمبر</option>
+              <option value="12">ديسمبر</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">ترتيب حسب</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortBy)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm"
+            >
+              <option value="recent">الأحدث</option>
+              <option value="name">الاسم (أ-ي)</option>
+              <option value="visits">عدد الزيارات</option>
+              <option value="spent">الإنفاق</option>
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          <div className="flex items-end">
+            {(vipFilter !== 'all' || birthdayMonth || sortBy !== 'recent') && (
+              <button
+                onClick={() => {
+                  setVipFilter('all')
+                  setBirthdayMonth('')
+                  setSortBy('recent')
+                  setSearchQuery('')
+                }}
+                className="w-full px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-white text-sm transition"
+              >
+                مسح الفلاتر
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
 
       {/* Clients List */}
       <div className="grid gap-3">
