@@ -1,610 +1,289 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { User, Session } from '@supabase/supabase-js'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/db/supabase'
-import toast from 'react-hot-toast'
-
-export interface CustomerAuthUser {
-  user: User | null
-  session: Session | null
-  customerId: string | null
-  shopId: string | null
-  customerName: string | null
-  email: string | null
-  phone: string | null
-  clientId: string | null
-  loading: boolean
-  error: string | null
-}
-
-// LocalStorage portal session management
-interface PortalSessionData {
-  customerId: string
-  shopId: string
-  customerName: string
-  email: string
-  phone: string | null
-  clientId: string | null
-  savedAt: number
-}
 
 const PORTAL_SESSION_KEY = 'portal_session'
-const SESSION_VALIDITY_DAYS = 30
 
-const getPortalSession = (): PortalSessionData | null => {
-  try {
-    const stored = localStorage.getItem(PORTAL_SESSION_KEY)
-    if (!stored) return null
-    
-    const data = JSON.parse(stored) as PortalSessionData
-    
-    // Check if session is still valid (30 days)
-    const ageInDays = (Date.now() - data.savedAt) / (1000 * 60 * 60 * 24)
-    if (ageInDays > SESSION_VALIDITY_DAYS) {
-      localStorage.removeItem(PORTAL_SESSION_KEY)
-      return null
+export interface PortalCustomer {
+  id: string
+  shopId: string
+  slug: string
+  fullName: string
+  email: string
+  phone: string
+  authUserId: string
+}
+
+/**
+ * Portal Auth Hook - Completely independent from Supabase Auth
+ * Uses localStorage for session persistence
+ * Portal users maintain separate sessions from main app users
+ */
+export function usePortalAuth(slug: string) {
+  const [customer, setCustomer] = useState<PortalCustomer | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load session from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(`${PORTAL_SESSION_KEY}_${slug}`)
+    if (stored) {
+      try {
+        const parsedCustomer = JSON.parse(stored)
+        setCustomer(parsedCustomer)
+      } catch {
+        localStorage.removeItem(`${PORTAL_SESSION_KEY}_${slug}`)
+      }
     }
-    
-    return data
-  } catch (err) {
-    console.error('Error reading portal session:', err)
-    return null
-  }
-}
+    setLoading(false)
+  }, [slug])
 
-const savePortalSession = (data: PortalSessionData): void => {
-  try {
-    localStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify(data))
-  } catch (err) {
-    console.error('Error saving portal session:', err)
-  }
-}
-
-const clearPortalSession = (): void => {
-  try {
-    localStorage.removeItem(PORTAL_SESSION_KEY)
-  } catch (err) {
-    console.error('Error clearing portal session:', err)
-  }
-}
-
-export function usePortalAuth(expectedShopId?: string) {
-  const mountedRef = useRef(true)
-  
-  const [state, setState] = useState<CustomerAuthUser>({
-    user: null,
-    session: null,
-    customerId: null,
-    shopId: null,
-    customerName: null,
-    email: null,
-    phone: null,
-    clientId: null,
-    loading: true,
-    error: null,
-  })
-
-  const getCustomerData = useCallback(async (userId: string): Promise<any | null> => {
+  // Sign in - verify against customer_users table
+  const signIn = async (email: string, password: string, shopId: string) => {
     try {
-      const { data } = await supabase
-        .from('customer_users')
-        .select('id, shop_id, full_name, email, phone, client_id')
-        .eq('auth_user_id', userId)
-        .maybeSingle()
-      
-      return data || null
-    } catch (err) {
-      console.error('Error fetching customer data:', err)
-      return null
-    }
-  }, [])
+      setError(null)
 
-  const verifyCustomerBelongsToShop = useCallback(async (customerId: string, shopId: string): Promise<boolean> => {
-    try {
-      const { data } = await supabase
+      // Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        const errorMsg = translateError(authError.message)
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
+
+      if (!authData.user) {
+        setError('فشل تسجيل الدخول')
+        return { error: 'فشل تسجيل الدخول' }
+      }
+
+      // Verify this customer belongs to THIS shop
+      const { data: customerData, error: customerError } = await supabase
         .from('customer_users')
-        .select('shop_id')
-        .eq('id', customerId)
+        .select('id, shop_id, full_name, email, phone, auth_user_id')
+        .eq('auth_user_id', authData.user.id)
         .eq('shop_id', shopId)
         .maybeSingle()
-      
-      return !!data
-    } catch (err) {
-      console.error('Error verifying customer shop:', err)
-      return false
-    }
-  }, [])
 
-  useEffect(() => {
-    const resolveCustomer = async (session: Session | null, portalSessionData?: PortalSessionData | null) => {
-      // If we have a saved portal session in localStorage, try to use it first
-      if (portalSessionData) {
-        // Verify the saved session is still valid in the database
-        const isValid = await verifyCustomerBelongsToShop(portalSessionData.customerId, portalSessionData.shopId)
-        
-        if (isValid) {
-          // Session is still valid, restore from localStorage
-          if (mountedRef.current) {
-            setState({
-              user: session?.user || null, // Can be null for localStorage-only sessions
-              session: session || null,
-              customerId: portalSessionData.customerId,
-              shopId: portalSessionData.shopId,
-              customerName: portalSessionData.customerName,
-              email: portalSessionData.email,
-              phone: portalSessionData.phone,
-              clientId: portalSessionData.clientId,
-              loading: false,
-              error: null,
-            })
-          }
-          return
-        } else {
-          // Stored session is no longer valid, clear it
-          clearPortalSession()
-        }
-      }
-
-      // No session - clear state
-      if (!session) {
-        if (mountedRef.current) {
-          setState({
-            user: null,
-            session: null,
-            customerId: null,
-            shopId: null,
-            customerName: null,
-            email: null,
-            phone: null,
-            clientId: null,
-            loading: false,
-            error: null,
-          })
-        }
-        return
-      }
-
-      const userId = session.user.id
-      const customerRole = session.user.user_metadata?.role
-
-      // Check if user is a customer
-      if (customerRole !== 'customer') {
-        // Not a customer - sign out
+      if (customerError || !customerData) {
+        // Sign out from Supabase but don't error on app - just session mismatch
         await supabase.auth.signOut()
-        clearPortalSession()
-        if (mountedRef.current) {
-          setState({
-            user: null,
-            session: null,
-            customerId: null,
-            shopId: null,
-            customerName: null,
-            email: null,
-            phone: null,
-            clientId: null,
-            loading: false,
-            error: 'Invalid user role for portal',
-          })
-          toast.error('انتهت جلستك - رجاء تسجيل دخول مجدداً')
-        }
-        return
+        const errorMsg = 'هذا الحساب غير مسجل في هذا المحل'
+        setError(errorMsg)
+        return { error: errorMsg }
       }
 
-      // Get customer data from database
-      const customerData = await getCustomerData(userId)
-      
-      if (!customerData) {
-        // Customer record not found
-        await supabase.auth.signOut()
-        clearPortalSession()
-        if (mountedRef.current) {
-          setState({
-            user: null,
-            session: null,
-            customerId: null,
-            shopId: null,
-            customerName: null,
-            email: null,
-            phone: null,
-            clientId: null,
-            loading: false,
-            error: 'Customer record not found',
-          })
-          toast.error('حسابك غير موجود - رجاء التواصل مع المحل')
-        }
-        return
-      }
-
-      // If expectedShopId provided, verify customer belongs to that shop
-      if (expectedShopId) {
-        const belongsToShop = await verifyCustomerBelongsToShop(customerData.id, expectedShopId)
-        
-        if (!belongsToShop) {
-          // Customer shop mismatch - potential security issue
-          await supabase.auth.signOut()
-          clearPortalSession()
-          if (mountedRef.current) {
-            setState({
-              user: null,
-              session: null,
-              customerId: null,
-              shopId: null,
-              customerName: null,
-              email: null,
-              phone: null,
-              clientId: null,
-              loading: false,
-              error: 'Customer does not belong to this shop',
-            })
-            toast.error('حسابك غير متوافق مع هذا المحل')
-          }
-          return
-        }
-      }
-
-      // All good - set customer data and save to localStorage
-      const portalData: PortalSessionData = {
-        customerId: customerData.id,
+      // Save to localStorage - this is the local portal session
+      const session: PortalCustomer = {
+        id: customerData.id,
         shopId: customerData.shop_id,
-        customerName: customerData.full_name,
+        slug,
+        fullName: customerData.full_name,
         email: customerData.email,
         phone: customerData.phone,
-        clientId: customerData.client_id,
-        savedAt: Date.now(),
-      }
-      savePortalSession(portalData)
-
-      if (mountedRef.current) {
-        setState({
-          user: session.user,
-          session,
-          customerId: customerData.id,
-          shopId: customerData.shop_id,
-          customerName: customerData.full_name,
-          email: customerData.email,
-          phone: customerData.phone,
-          clientId: customerData.client_id,
-          loading: false,
-          error: null,
-        })
-      }
-    }
-
-    // Step 1: Check localStorage first for portal session
-    const savedSession = getPortalSession()
-    
-    // Step 2: Check Supabase session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      resolveCustomer(session, savedSession)
-    })
-
-    // Step 3: Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mountedRef.current) {
-        const saved = getPortalSession()
-        resolveCustomer(session, saved)
-      }
-    })
-
-    // Step 4: Fallback timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      if (mountedRef.current) {
-        setState(prev => prev.loading ? { ...prev, loading: false, error: null } : prev)
-      }
-    }, 5000)
-
-    return () => {
-      mountedRef.current = false
-      subscription.unsubscribe()
-      clearTimeout(timeout)
-    }
-  }, [getCustomerData, verifyCustomerBelongsToShop, expectedShopId])
-
-  // Sign in as customer
-  const signIn = useCallback(async (email: string, password: string, shopId: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      
-      if (error) {
-        if (mountedRef.current) {
-          setState(prev => ({ ...prev, loading: false, error: error.message }))
-        }
-        throw error
+        authUserId: customerData.auth_user_id,
       }
 
-      // Get session and verify customer belongs to shop
-      const sessionResult = await supabase.auth.getSession()
-      if (sessionResult.data.session) {
-        const customerData = await getCustomerData(sessionResult.data.session.user.id)
-        
-        if (!customerData || customerData.shop_id !== shopId) {
-          await supabase.auth.signOut()
-          clearPortalSession()
-          if (mountedRef.current) {
-            setState(prev => ({ ...prev, loading: false, error: 'Customer not found in this shop' }))
-          }
-          throw new Error('Customer not found in this shop')
-        }
+      localStorage.setItem(`${PORTAL_SESSION_KEY}_${slug}`, JSON.stringify(session))
+      setCustomer(session)
+      setError(null)
 
-        // Save to localStorage for portal session persistence
-        const portalData: PortalSessionData = {
-          customerId: customerData.id,
-          shopId: customerData.shop_id,
-          customerName: customerData.full_name,
-          email: customerData.email,
-          phone: customerData.phone,
-          clientId: customerData.client_id,
-          savedAt: Date.now(),
-        }
-        savePortalSession(portalData)
-      }
+      return { error: null }
     } catch (err: any) {
-      console.error('Sign in error:', err)
-      if (mountedRef.current) {
-        setState(prev => ({ ...prev, loading: false, error: err.message }))
-      }
-      throw err
+      const errorMsg = 'خطأ في الاتصال، يرجى المحاولة مرة أخرى'
+      setError(errorMsg)
+      return { error: errorMsg }
     }
-  }, [getCustomerData])
+  }
 
-  // Register as new customer
-  const signUp = useCallback(async (
+  // Sign up - create new customer
+  const signUp = async (
+    name: string,
     email: string,
-    password: string,
-    fullName: string,
     phone: string,
-    birthDate: string,
-    shopId: string,
-    slug?: string
+    password: string,
+    birthday: string,
+    shopId: string
   ) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
     try {
-      // Build redirect URL for email confirmation
-      const redirectTo = slug ? `${window.location.origin}/shop/${slug}/dashboard` : undefined
+      setError(null)
 
-      // Create auth user with customer role
+      // Check duplicate email in this shop
+      const { data: existingEmail, error: emailCheckError } = await supabase
+        .from('customer_users')
+        .select('id')
+        .eq('shop_id', shopId)
+        .eq('email', email)
+        .maybeSingle()
+
+      if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+        throw emailCheckError
+      }
+
+      if (existingEmail) {
+        const errorMsg = 'البريد الإلكتروني مسجل بالفعل في هذا المحل'
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
+
+      // Check duplicate phone in this shop
+      const { data: existingPhone, error: phoneCheckError } = await supabase
+        .from('customer_users')
+        .select('id')
+        .eq('shop_id', shopId)
+        .eq('phone', phone)
+        .maybeSingle()
+
+      if (phoneCheckError && phoneCheckError.code !== 'PGRST116') {
+        throw phoneCheckError
+      }
+
+      if (existingPhone) {
+        const errorMsg = 'رقم الهاتف مسجل بالفعل في هذا المحل'
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
+
+      // Create Supabase Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectTo,
           data: {
-            role: 'customer',
             shop_id: shopId,
-            full_name: fullName,
-            phone: phone,
+            role: 'customer',
+            full_name: name,
           },
         },
       })
 
-      if (authError) throw authError
-      if (!authData.user) throw new Error('Failed to create user')
+      if (authError) {
+        const errorMsg = translateError(authError.message)
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
 
-      // Check if email confirmation is required (email_confirmed_at is null and needsEmailConfirmation is true)
-      const requiresEmailConfirmation = authData.user.email_confirmed_at === null
+      if (!authData.user) {
+        const errorMsg = 'حدث خطأ في إنشاء الحساب'
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
 
-      // Create customer_users record
-      const { data: customerData, error: customerError } = await supabase
+      // Insert into customer_users table
+      const { data: newCustomer, error: insertError } = await supabase
         .from('customer_users')
         .insert({
-          auth_user_id: authData.user.id,
           shop_id: shopId,
-          full_name: fullName,
+          auth_user_id: authData.user.id,
+          full_name: name,
           email,
           phone,
-          birth_date: birthDate,
-          verified: requiresEmailConfirmation ? false : false, // Mark as not verified if email confirmation is required
+          birth_date: birthday || null,
         })
         .select()
         .single()
 
-      if (customerError) throw customerError
+      if (insertError) {
+        console.error('Insert customer error:', insertError)
+        const errorMsg = 'حدث خطأ في حفظ البيانات، يرجى المحاولة مرة أخرى'
+        setError(errorMsg)
+        return { error: errorMsg }
+      }
 
-      // Check if customer phone matches existing client in this shop
-      let clientId = null
-      const { data: existingClient } = await supabase
+      // Check if client exists in clients table (by phone)
+      const { data: existingClient, error: clientCheckError } = await supabase
         .from('clients')
         .select('id')
         .eq('shop_id', shopId)
         .eq('phone', phone)
         .maybeSingle()
 
-      if (existingClient) {
-        // Link existing client
-        clientId = existingClient.id
-        await supabase
-          .from('customer_users')
-          .update({ client_id: clientId })
-          .eq('id', customerData.id)
-      } else {
-        // Create new client
-        const { data: newClient } = await supabase
-          .from('clients')
-          .insert({
-            shop_id: shopId,
-            name: fullName,
-            phone,
-            email,
-            source: 'من البوربتال', // From Portal
-          })
-          .select()
-          .single()
+      if (clientCheckError && clientCheckError.code !== 'PGRST116') {
+        console.error('Client check error:', clientCheckError)
+      }
 
-        if (newClient) {
-          clientId = newClient.id
-          await supabase
-            .from('customer_users')
-            .update({ client_id: clientId })
-            .eq('id', customerData.id)
+      // If no existing client, create one
+      if (!existingClient) {
+        const { error: createClientError } = await supabase.from('clients').insert({
+          shop_id: shopId,
+          name,
+          phone,
+          email,
+          birth_date: birthday || null,
+          source: 'من البوربتال',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        if (createClientError) {
+          console.error('Create client error:', createClientError)
+          // Don't fail signup if client creation fails
         }
       }
 
-      // Auto-login after signup only if email confirmation is not required
-      if (requiresEmailConfirmation) {
-        // Email confirmation required - don't auto-login
-        // Return success but indicate that email confirmation is needed
-        // Clear any cached session
-        clearPortalSession()
-        if (mountedRef.current) {
-          setState({
-            user: null,
-            session: null,
-            customerId: null,
-            shopId: null,
-            customerName: null,
-            email: null,
-            phone: null,
-            clientId: null,
-            loading: false,
-            error: null,
-          })
-        }
-        // Return with a flag indicating email confirmation is required
-        return { ...customerData, requiresEmailConfirmation: true }
+      // Save to localStorage
+      const session: PortalCustomer = {
+        id: newCustomer.id,
+        shopId,
+        slug: '', // Will be set by caller if needed
+        fullName: name,
+        email,
+        phone,
+        authUserId: authData.user.id,
       }
 
-      await signIn(email, password, shopId)
-      
-      // Get the final customer data for portal session
-      const sessionResult = await supabase.auth.getSession()
-      if (sessionResult.data.session) {
-        const finalCustomerData = await getCustomerData(sessionResult.data.session.user.id)
-        if (finalCustomerData) {
-          const portalData: PortalSessionData = {
-            customerId: finalCustomerData.id,
-            shopId: finalCustomerData.shop_id,
-            customerName: finalCustomerData.full_name,
-            email: finalCustomerData.email,
-            phone: finalCustomerData.phone,
-            clientId: finalCustomerData.client_id,
-            savedAt: Date.now(),
-          }
-          savePortalSession(portalData)
-        }
-      }
-      
-      return { ...customerData, requiresEmailConfirmation: false }
+      localStorage.setItem(`${PORTAL_SESSION_KEY}_${slug}`, JSON.stringify(session))
+      setCustomer(session)
+      setError(null)
+
+      return { error: null }
     } catch (err: any) {
       console.error('Sign up error:', err)
-      let friendlyMessage = err.message
-      
-      // Map common Supabase errors to Arabic messages
-      if (err.message?.includes('duplicate key')) {
-        if (err.message?.includes('email')) {
-          friendlyMessage = 'هذا البريد الإلكتروني مسجل بالفعل'
-        } else if (err.message?.includes('phone')) {
-          friendlyMessage = 'رقم الهاتف مسجل بالفعل'
-        } else {
-          friendlyMessage = 'هذه البيانات مسجلة بالفعل'
-        }
-      } else if (err.message?.includes('already registered') || err.message?.includes('User already exists')) {
-        friendlyMessage = 'هذا البريد الإلكتروني مسجل بالفعل'
-      } else if (err.message?.includes('unique constraint')) {
-        friendlyMessage = 'هذه البيانات مسجلة بالفعل'
-      } else if (err.message?.includes('Email not confirmed')) {
-        friendlyMessage = 'تم إرسال رسالة تأكيد لبريدك الإلكتروني، يرجى تأكيده ثم تسجيل الدخول'
-      } else if (!friendlyMessage || err.status === 0 || err.code === 'connection_error') {
-        friendlyMessage = 'خطأ في الاتصال - يرجى التحقق من اتصالك بالإنترنت وحاول مجدداً'
-      }
-      
-      if (mountedRef.current) {
-        setState(prev => ({ ...prev, loading: false, error: friendlyMessage }))
-      }
-      throw new Error(friendlyMessage)
+      const errorMsg = 'خطأ في الاتصال، يرجى المحاولة مرة أخرى'
+      setError(errorMsg)
+      return { error: errorMsg }
     }
-  }, [signIn])
+  }
 
-  // Sign out customer
-  const signOut = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true }))
-    try {
-      await supabase.auth.signOut()
-      clearPortalSession()
-      if (mountedRef.current) {
-        setState({
-          user: null,
-          session: null,
-          customerId: null,
-          shopId: null,
-          customerName: null,
-          email: null,
-          phone: null,
-          clientId: null,
-          loading: false,
-          error: null,
-        })
-      }
-    } catch (err: any) {
-      console.error('Sign out error:', err)
-      // Always clear localStorage even if signOut fails
-      clearPortalSession()
-      if (mountedRef.current) {
-        setState(prev => ({ ...prev, loading: false, error: err.message }))
-      }
-    }
-  }, [])
-
-  // Update customer profile
-  const updateProfile = useCallback(async (
-    customerId: string,
-    updates: {
-      full_name?: string
-      phone?: string
-      email?: string
-      birth_date?: string
-    }
-  ) => {
-    try {
-      const { data, error } = await supabase
-        .from('customer_users')
-        .update(updates)
-        .eq('id', customerId)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Update local state
-      if (mountedRef.current) {
-        setState(prev => ({
-          ...prev,
-          customerName: updates.full_name || prev.customerName,
-          phone: updates.phone || prev.phone,
-          email: updates.email || prev.email,
-        }))
-      }
-
-      return data
-    } catch (err: any) {
-      console.error('Update profile error:', err)
-      throw err
-    }
-  }, [])
-
-  // Request password reset
-  const resetPassword = useCallback(async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/portal-reset-password`,
-      })
-
-      if (error) throw error
-      return true
-    } catch (err: any) {
-      console.error('Reset password error:', err)
-      throw err
-    }
-  }, [])
+  // Sign out
+  const signOut = () => {
+    localStorage.removeItem(`${PORTAL_SESSION_KEY}_${slug}`)
+    setCustomer(null)
+    setError(null)
+  }
 
   return {
-    ...state,
+    customer,
+    loading,
+    error,
     signIn,
     signUp,
     signOut,
-    updateProfile,
-    resetPassword,
-    isAuthenticated: !!state.user,
+    isAuthenticated: !!customer,
   }
+}
+
+// Translate Supabase errors to Arabic
+function translateError(error: string): string {
+  if (error.includes('Invalid login credentials')) {
+    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+  }
+  if (error.includes('Email not confirmed')) {
+    return 'يرجى تأكيد بريدك الإلكتروني أولاً'
+  }
+  if (error.includes('User already registered')) {
+    return 'هذا الحساب مسجل بالفعل'
+  }
+  if (error.includes('Password should be at least')) {
+    return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'
+  }
+  if (error.includes('rate limit')) {
+    return 'تم تجاوز الحد المسموح، حاول لاحقاً'
+  }
+  if (error.includes('network') || error.includes('fetch')) {
+    return 'خطأ في الاتصال، يرجى المحاولة مرة أخرى'
+  }
+  return 'حدث خطأ، يرجى المحاولة مرة أخرى'
 }

@@ -11,11 +11,11 @@ export function PortalDashboard() {
   const navigate = useNavigate()
 
   // Auth & Settings
-  const { isAuthenticated, loading, customerName, signOut, shopId, customerId } = usePortalAuth(slug)
+  const { customer, loading: authLoading, signOut } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
 
   // Stats
-  const { stats, loading: statsLoading } = usePortalDashboardStats(shopId || undefined, customerId || undefined)
+  const { stats, loading: statsLoading } = usePortalDashboardStats(customer?.shopId, customer?.id)
 
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -26,16 +26,17 @@ export function PortalDashboard() {
     }
   }, [settings?.shop_name])
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !customer) {
       navigate(`/shop/${slug}/login`, { replace: true })
     }
-  }, [isAuthenticated, loading, slug, navigate])
+  }, [customer, authLoading, slug, navigate])
 
   const handleLogout = async () => {
     setLoggingOut(true)
     try {
-      await signOut()
+      signOut()
       toast.success('تم تسجيل الخروج بنجاح')
       navigate(`/shop/${slug}`, { replace: true })
     } catch (err) {
@@ -44,7 +45,7 @@ export function PortalDashboard() {
     }
   }
 
-  if (loading || settingsLoading || statsLoading) {
+  if (authLoading || settingsLoading || statsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">
@@ -55,6 +56,10 @@ export function PortalDashboard() {
     )
   }
 
+  if (!customer) {
+    return null
+  }
+
   const primaryColor = settings?.primary_color || '#FFD700'
 
   return (
@@ -63,7 +68,7 @@ export function PortalDashboard() {
         {/* Header */}
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">مرحباً {customerName}</h1>
+            <h1 className="text-4xl font-bold mb-2">مرحباً {customer.fullName}</h1>
             {settings && <p className="text-white/70 text-lg">{settings.shop_name}</p>}
           </div>
           <button
@@ -197,27 +202,7 @@ export function PortalDashboard() {
         {/* Welcome Section */}
         <div className="bg-white/5 backdrop-blur border border-white/10 rounded-lg p-8">
           <h2 className="text-2xl font-bold mb-4 text-white">مرحباً بك في {settings?.shop_name}</h2>
-          <p className="text-white/70 mb-6">
-            {settings?.welcome_message || 'نسعد بخدمتك! استخدم التطبيق لحجز مواعيدك بسهولة'}
-          </p>
-          <ul className="grid md:grid-cols-2 gap-4 text-white/70">
-            <li className="flex items-start gap-2">
-              <span className="text-green-400 font-bold">✓</span>
-              <span>احجز مواعيدك بسهولة وسرعة</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400 font-bold">✓</span>
-              <span>تابع سجل جميع مواعيدك</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400 font-bold">✓</span>
-              <span>احصل على تذكيرات تلقائية</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-400 font-bold">✓</span>
-              <span>دعم عملاء متخصص على مدار الساعة</span>
-            </li>
-          </ul>
+          <p className="text-white/70 mb-6">{settings?.welcome_message || 'نسعد بخدمتك'}</p>
         </div>
       </div>
     </div>

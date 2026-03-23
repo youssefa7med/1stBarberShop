@@ -8,7 +8,7 @@ import { Eye, EyeOff } from 'lucide-react'
 export function PortalRegister() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { signUp } = usePortalAuth(slug)
+  const { customer, loading: authLoading, signUp } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
 
   const [loading, setLoading] = useState(false)
@@ -22,6 +22,13 @@ export function PortalRegister() {
     confirmPassword: '',
     birthDate: '',
   })
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (!authLoading && customer) {
+      navigate(`/shop/${slug}/dashboard`, { replace: true })
+    }
+  }, [customer, authLoading, slug, navigate])
 
   // Update browser title
   useEffect(() => {
@@ -78,64 +85,37 @@ export function PortalRegister() {
         return
       }
 
-      // Call signUp with slug for email redirect
-      const result = await signUp(
-        formData.email,
-        formData.password,
+      // Call signUp
+      const { error } = await signUp(
         formData.fullName,
+        formData.email,
         formData.phone,
+        formData.password,
         formData.birthDate,
-        settings.shop_id,
-        slug // Pass slug for emailRedirectTo
+        settings.shop_id
       )
 
-      // Check if email confirmation is required
-      if (result?.requiresEmailConfirmation) {
-        toast.success('تم إرسال رسالة تأكيد لبريدك الإلكتروني\nيرجى تأكيده ثم تسجيل الدخول')
-        // Redirect to login page after 2 seconds
-        setTimeout(() => {
-          navigate(`/shop/${slug}/login`, { replace: true })
-        }, 2000)
+      if (error) {
+        toast.error(error)
         return
       }
 
       // If successful, auto-login and redirect to dashboard
-      toast.success('تم إنشاء الحساب بنجاح! جاري تسجيل الدخول...')
+      toast.success('تم إنشاء الحساب بنجاح!')
       
-      // Give it a moment for auto-login
+      // Give it a moment for the state to update
       setTimeout(() => {
         navigate(`/shop/${slug}/dashboard`, { replace: true })
-      }, 1000)
+      }, 500)
     } catch (err: any) {
       console.error('Registration error:', err)
-      let errorMessage = err.message || 'خطأ في الاتصال - يرجى المحاولة لاحقاً'
-      
-      // Map common error messages to Arabic
-      if (errorMessage.includes('Email not confirmed')) {
-        errorMessage = 'تم إرسال رسالة تأكيد لبريدك الإلكتروني، يرجى تأكيده ثم تسجيل الدخول'
-      } else if (errorMessage.includes('already registered') || errorMessage.includes('User already exists')) {
-        errorMessage = 'هذا البريد الإلكتروني مسجل بالفعل'
-      } else if (errorMessage.includes('duplicate key')) {
-        if (errorMessage.includes('email')) {
-          errorMessage = 'هذا البريد الإلكتروني مسجل بالفعل'
-        } else if (errorMessage.includes('phone')) {
-          errorMessage = 'رقم الهاتف مسجل بالفعل'
-        } else {
-          errorMessage = 'هذه البيانات مسجلة بالفعل'
-        }
-      } else if (errorMessage.includes('unique constraint')) {
-        errorMessage = 'هذه البيانات مسجلة بالفعل'
-      } else if (errorMessage.includes('خطأ في الاتصال') || err.status === 0) {
-        errorMessage = 'خطأ في الاتصال - يرجى التحقق من اتصالك بالإنترنت وحاول مجدداً'
-      }
-      
-      toast.error(errorMessage)
+      toast.error(err.message || 'خطأ في التسجيل')
     } finally {
       setLoading(false)
     }
   }
 
-  if (settingsLoading) {
+  if (settingsLoading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">
@@ -306,7 +286,7 @@ export function PortalRegister() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 rounded font-semibold text-white transition hover:shadow-lg disabled:opacity-50 mt-6"
+              className="w-full py-3 rounded font-semibold text-white transition hover:shadow-lg disabled:opacity-50"
               style={{ backgroundColor: settings.primary_color }}
             >
               {loading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}
@@ -315,21 +295,17 @@ export function PortalRegister() {
 
           <div className="mt-6 text-center pt-4 border-t border-white/10">
             <p className="text-white/70 text-sm">
-              هل لديك حساب بالفعل؟{' '}
+              لديك حساب بالفعل؟{' '}
               <button
                 onClick={() => navigate(`/shop/${slug}/login`)}
                 className="transition hover:opacity-70 font-semibold"
                 style={{ color: settings.primary_color }}
               >
-                دخول
+                سجل دخول
               </button>
             </p>
           </div>
         </div>
-
-        <p className="text-white/50 text-xs text-center mt-4">
-          * الحقول المطلوبة
-        </p>
       </div>
     </div>
   )

@@ -11,11 +11,11 @@ export function PortalProfile() {
   const navigate = useNavigate()
 
   // Auth & Settings
-  const { isAuthenticated, loading, customerId } = usePortalAuth(slug)
+  const { customer, loading: authLoading } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
 
   // Profile data
-  const { profile, loading: profileLoading, error: profileError, updateProfile, sendPhoneVerification, sendEmailVerification } = usePortalProfile(customerId || undefined)
+  const { profile, loading: profileLoading, error: profileError, updateProfile, sendPhoneVerification, sendEmailVerification } = usePortalProfile(customer?.id)
 
   // Form state
   const [isEditing, setIsEditing] = useState(false)
@@ -32,10 +32,10 @@ export function PortalProfile() {
   }, [settings?.shop_name])
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !customer) {
       navigate(`/shop/${slug}/login`, { replace: true })
     }
-  }, [isAuthenticated, loading, slug, navigate])
+  }, [customer, authLoading, slug, navigate])
 
   // Initialize form with profile data
   useEffect(() => {
@@ -121,7 +121,7 @@ export function PortalProfile() {
     }
   }
 
-  if (loading || settingsLoading || profileLoading) {
+  if (authLoading || settingsLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">

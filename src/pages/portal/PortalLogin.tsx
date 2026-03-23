@@ -8,13 +8,20 @@ import { Eye, EyeOff } from 'lucide-react'
 export function PortalLogin() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { signIn } = usePortalAuth(slug)
+  const { customer, loading: authLoading, signIn } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (!authLoading && customer) {
+      navigate(`/shop/${slug}/dashboard`, { replace: true })
+    }
+  }, [customer, authLoading, slug, navigate])
 
   // Update browser title
   useEffect(() => {
@@ -38,36 +45,19 @@ export function PortalLogin() {
         return
       }
 
-      // Get shop_id from settings
-      const shopId = settings.shop_id
-
-      // Call signIn
-      await signIn(email, password, shopId)
+      const { error } = await signIn(email, password, settings.shop_id)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
 
       // If successful, navigate to dashboard
       navigate(`/shop/${slug}/dashboard`, { replace: true })
       toast.success('تم تسجيل الدخول بنجاح')
     } catch (err: any) {
       console.error('Login error:', err)
-      let errorMessage = err.message || 'خطأ في تسجيل الدخول'
-      
-      // Map common error messages to Arabic
-      if (
-        errorMessage.includes('Invalid login credentials') ||
-        errorMessage.includes('invalid credentials') ||
-        errorMessage.includes('Unable to validate') ||
-        errorMessage.includes('Invalid credentials')
-      ) {
-        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
-      } else if (errorMessage.includes('Email not confirmed')) {
-        errorMessage = 'يرجى تأكيد بريدك الإلكتروني'
-      } else if (errorMessage.includes('User not found')) {
-        errorMessage = 'لا توجد حسابات بهذا البريد الإلكتروني'
-      } else if (!['البريد', 'كلمة', 'حساب', 'خطأ', 'جلسة'].some(word => errorMessage.includes(word))) {
-        errorMessage = 'خطأ في الاتصال - يرجى المحاولة لاحقاً'
-      }
-      
-      toast.error(errorMessage)
+      toast.error(err.message || 'خطأ في تسجيل الدخول')
     } finally {
       setLoading(false)
     }
@@ -81,9 +71,8 @@ export function PortalLogin() {
 
     setLoading(true)
     try {
-      const { error } = await (
-        await import('@/db/supabase')
-      ).supabase.auth.resetPasswordForEmail(email, {
+      const { supabase } = await import('@/db/supabase')
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/shop/${slug}/reset-password`,
       })
 
@@ -96,7 +85,7 @@ export function PortalLogin() {
     }
   }
 
-  if (settingsLoading) {
+  if (settingsLoading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">

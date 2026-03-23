@@ -28,14 +28,9 @@ export const Settings: React.FC = () => {
     barbershopPhone: '',
   })
 
-  // Portal form state
+  // Portal form state - simplified without template and color customization
   const [portalFormData, setPortalFormData] = useState({
     is_active: false,
-    template_id: 1,
-    primary_color: '#FFD700',
-    secondary_color: '#1E1E2E',
-    accent_color: '#FF6B6B',
-    text_color: '#FFFFFF',
     portal_slug: '',
     welcome_message: '',
   })
@@ -55,11 +50,6 @@ export const Settings: React.FC = () => {
     if (portalSettings) {
       setPortalFormData({
         is_active: portalSettings.is_active,
-        template_id: portalSettings.template_id,
-        primary_color: portalSettings.primary_color,
-        secondary_color: portalSettings.secondary_color,
-        accent_color: portalSettings.accent_color,
-        text_color: portalSettings.text_color,
         portal_slug: portalSettings.portal_slug,
         welcome_message: portalSettings.welcome_message || '',
       })
@@ -114,11 +104,6 @@ export const Settings: React.FC = () => {
     try {
       await updatePortalSettings({
         is_active: portalFormData.is_active,
-        template_id: portalFormData.template_id,
-        primary_color: portalFormData.primary_color,
-        secondary_color: portalFormData.secondary_color,
-        accent_color: portalFormData.accent_color,
-        text_color: portalFormData.text_color,
         portal_slug: portalFormData.portal_slug,
         welcome_message: portalFormData.welcome_message,
       })
@@ -138,11 +123,6 @@ export const Settings: React.FC = () => {
     if (portalSettings) {
       setPortalFormData({
         is_active: portalSettings.is_active,
-        template_id: portalSettings.template_id,
-        primary_color: portalSettings.primary_color,
-        secondary_color: portalSettings.secondary_color,
-        accent_color: portalSettings.accent_color,
-        text_color: portalSettings.text_color,
         portal_slug: portalSettings.portal_slug,
         welcome_message: portalSettings.welcome_message || '',
       })
@@ -316,145 +296,6 @@ export const Settings: React.FC = () => {
               </button>
             </div>
 
-            {/* Template Selector */}
-            <div>
-              <label className="block text-sm md:text-base text-gray-300 mb-3 font-semibold">اختر قالب البوابة</label>
-              <div className="grid grid-cols-5 gap-2 md:gap-3">
-                {[1, 2, 3, 4, 5].map((tmpl) => (
-                  <button
-                    key={tmpl}
-                    onClick={() => setPortalFormData(prev => ({ ...prev, template_id: tmpl }))}
-                    className={`h-12 md:h-10 py-2 md:py-1 px-1 md:px-3 rounded-lg font-bold text-sm md:text-base transition ${
-                      portalFormData.template_id === tmpl
-                        ? 'bg-gold-400/30 text-gold-400 border-2 border-gold-400'
-                        : 'bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    {tmpl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Template Preview */}
-            <div className="border border-gray-600 rounded-lg p-3 md:p-4 overflow-auto bg-gray-800/20">
-              <p className="text-base md:text-lg font-semibold text-gold-400 mb-4">معاينة القالب</p>
-              
-              {/* Template 1: Modern Minimalist */}
-              {portalFormData.template_id === 1 && (
-                <div className="min-h-48 bg-white text-gray-900 p-6 rounded-lg" dir="rtl">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-light mb-2" style={{ color: portalFormData.primary_color }}>
-                      محل حلاقة
-                    </h1>
-                    <p className="text-gray-600 mb-6">{portalFormData.welcome_message || 'احجز موعدك الآن'}</p>
-                    <div className="space-y-2">
-                      <button className="w-full py-2 rounded text-white" style={{ backgroundColor: portalFormData.primary_color }}>
-                        دخول
-                      </button>
-                      <button className="w-full py-2 rounded border-2" style={{ borderColor: portalFormData.primary_color, color: portalFormData.primary_color }}>
-                        إنشاء حساب جديد
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Template 2: Luxury Premium */}
-              {portalFormData.template_id === 2 && (
-                <div className="min-h-48 text-white p-6 rounded-lg" style={{ backgroundColor: portalFormData.secondary_color }} dir="rtl">
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-full mx-auto mb-4" style={{ backgroundColor: portalFormData.primary_color }} />
-                    <h1 className="text-4xl font-serif mb-2" style={{ color: portalFormData.primary_color }}>
-                      محل حلاقة
-                    </h1>
-                    <div className="h-0.5 w-8 mx-auto mb-4" style={{ backgroundColor: portalFormData.accent_color }} />
-                    <p className="text-gray-300 mb-6">{portalFormData.welcome_message || 'تجربة فاخرة'}</p>
-                    <div className="space-y-2">
-                      <button className="w-full py-2 rounded font-serif" style={{ backgroundColor: portalFormData.primary_color, color: '#000' }}>
-                        دخول
-                      </button>
-                      <button className="w-full py-2 rounded border-b-2" style={{ borderColor: portalFormData.primary_color, color: portalFormData.primary_color }}>
-                        تسجيل جديد
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Template 3: Dark Modern */}
-              {portalFormData.template_id === 3 && (
-                <div className="min-h-48 bg-slate-900 text-white p-6 rounded-lg" dir="rtl">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-2" style={{ color: portalFormData.primary_color }}>
-                      محل حلاقة
-                    </h1>
-                    <p className="text-slate-400 mb-6">{portalFormData.welcome_message || 'احجز الآن'}</p>
-                    <div className="space-y-2">
-                      <button className="w-full py-2 rounded font-bold" style={{ backgroundColor: portalFormData.primary_color, color: '#000' }}>
-                        تسجيل الدخول
-                      </button>
-                      <button className="w-full py-2 rounded border border-gray-600" style={{ color: portalFormData.primary_color }}>
-                        حساب جديد
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Template 4: Gradient */}
-              {portalFormData.template_id === 4 && (
-                <div 
-                  className="min-h-48 text-white p-6 rounded-lg"
-                  style={{
-                    background: `linear-gradient(135deg, ${portalFormData.secondary_color} 0%, ${portalFormData.primary_color}20 100%)`
-                  }}
-                  dir="rtl">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-2" style={{ color: portalFormData.primary_color }}>
-                      محل حلاقة
-                    </h1>
-                    <p className="mb-6 opacity-90">{portalFormData.welcome_message || 'احجز موعدك'}</p>
-                    <div className="space-y-2">
-                      <button className="w-full py-2 rounded font-bold" style={{ backgroundColor: portalFormData.primary_color, color: portalFormData.secondary_color }}>
-                        دخول
-                      </button>
-                      <button className="w-full py-2 rounded border-2" style={{ borderColor: portalFormData.primary_color, color: portalFormData.primary_color }}>
-                        اشترك الآن
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Template 5: Colorful */}
-              {portalFormData.template_id === 5 && (
-                <div className="min-h-48 p-6 rounded-lg" style={{ backgroundColor: portalFormData.secondary_color }} dir="rtl">
-                  <div className="text-center">
-                    <div className="flex gap-2 justify-center mb-4">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: portalFormData.primary_color }} />
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: portalFormData.accent_color }} />
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: portalFormData.text_color }} />
-                    </div>
-                    <h1 className="text-4xl font-bold mb-2" style={{ color: portalFormData.primary_color }}>
-                      محل حلاقة
-                    </h1>
-                    <p style={{ color: portalFormData.text_color }} className="mb-6">
-                      {portalFormData.welcome_message || 'نرحب بك'}
-                    </p>
-                    <div className="space-y-2">
-                      <button className="w-full py-2 rounded font-bold" style={{ backgroundColor: portalFormData.primary_color, color: portalFormData.secondary_color }}>
-                        دخول
-                      </button>
-                      <button className="w-full py-2 rounded" style={{ backgroundColor: portalFormData.accent_color, color: portalFormData.secondary_color }}>
-                        حساب جديد
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Portal Slug */}
             <div>
               <label className="block text-sm md:text-base text-gray-300 mb-2 font-semibold">معرّف البوابة (slug)</label>
@@ -470,85 +311,6 @@ export const Settings: React.FC = () => {
                 />
               </div>
               <div className="md:hidden mt-2 text-xs text-gray-500">{window.location.origin}/shop/{portalFormData.portal_slug || 'my-shop'}</div>
-            </div>
-
-            {/* Color Pickers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm md:text-base text-gray-300 mb-2 font-semibold">اللون الأساسي</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={portalFormData.primary_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, primary_color: e.target.value }))}
-                    className="w-14 h-12 md:w-12 md:h-10 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={portalFormData.primary_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, primary_color: e.target.value }))}
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm font-mono focus:border-gold-400 focus:outline-none"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm md:text-base text-gray-300 mb-2 font-semibold">اللون الثانوي</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={portalFormData.secondary_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
-                    className="w-14 h-12 md:w-12 md:h-10 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={portalFormData.secondary_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm font-mono focus:border-gold-400 focus:outline-none"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm md:text-base text-gray-300 mb-2 font-semibold">لون التركيز</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={portalFormData.accent_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, accent_color: e.target.value }))}
-                    className="w-14 h-12 md:w-12 md:h-10 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={portalFormData.accent_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, accent_color: e.target.value }))}
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm font-mono focus:border-gold-400 focus:outline-none"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm md:text-base text-gray-300 mb-2 font-semibold">لون النص</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={portalFormData.text_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, text_color: e.target.value }))}
-                    className="w-14 h-12 md:w-12 md:h-10 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={portalFormData.text_color}
-                    onChange={(e) => setPortalFormData(prev => ({ ...prev, text_color: e.target.value }))}
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm font-mono focus:border-gold-400 focus:outline-none"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Welcome Message */}

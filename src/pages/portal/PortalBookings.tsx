@@ -26,7 +26,7 @@ export function PortalBookings() {
   const navigate = useNavigate()
   
   // Auth & Settings
-  const { isAuthenticated, loading, customerId, shopId } = usePortalAuth(slug)
+  const { customer, loading: authLoading } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
   
   // Booking data
@@ -39,7 +39,7 @@ export function PortalBookings() {
     createBooking,
     cancelBooking,
     getAvailableSlots
-  } = usePortalBookings(shopId || undefined, customerId || undefined)
+  } = usePortalBookings(customer?.shopId, customer?.id)
 
   // UI State
   const [activeTab, setActiveTab] = useState<TabType>('new')
@@ -52,10 +52,10 @@ export function PortalBookings() {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !customer) {
       navigate(`/shop/${slug}/login`, { replace: true })
     }
-  }, [isAuthenticated, loading, slug, navigate])
+  }, [customer, authLoading, slug, navigate])
 
   // Update browser title
   useEffect(() => {
@@ -107,7 +107,7 @@ export function PortalBookings() {
         form.date,
         form.time,
         form.barberId || undefined,
-        customerId || undefined
+        customer?.id
       )
 
       // Show confirmation
@@ -156,7 +156,7 @@ export function PortalBookings() {
     return badge
   }
 
-  if (loading || settingsLoading || bookingsLoading) {
+  if (authLoading || settingsLoading || bookingsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">

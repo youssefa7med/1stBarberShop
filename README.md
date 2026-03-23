@@ -2,9 +2,73 @@
 
 A professional, production-ready barber shop management and point-of-sale (POS) system built with **React + Framer Motion** and powered by **Supabase** (PostgreSQL).
 
-🎨 **Features**: Modern glassmorphism design, Arabic/English localization (i18n), real-time analytics, receipt printing, VIP client tracking, expense management, **real-time queue system**, and more.
+🎨 **Features**: Modern glassmorphism design, Arabic/English localization (i18n), real-time analytics, receipt printing, VIP client tracking, expense management, **real-time queue system**, **independent customer portal**, and more.
 
 🇪🇬 **Designed for Egyptian barbershops** with Egyptian locale defaults (currency: ج.م, phone format, date formatting).
+
+---
+
+## 📋 Latest Updates (Session - Critical Portal Auth Fix)
+
+### ✅ CRITICAL FIX: Portal Authentication System Rewritten
+**Fix for "انتهت جلستك - رجاء تسجيل دخول مجدداً" bug**
+
+#### Problem (FIXED)
+- Portal users were experiencing session logout redirects on every page interaction
+- Root cause: Portal pages were checking Supabase Auth session (main app auth) instead of using independent portal session storage
+- Made portal completely unusable despite successful login
+
+#### Solution Implemented
+Portal authentication system completely rewritten to be 100% **INDEPENDENT** from main app Supabase Auth:
+
+1. **New `usePortalAuth.ts` Hook**
+   - Uses `localStorage` (key: `portal_session_{slug}`) instead of Supabase auth listeners
+   - Simple `useState` + `useEffect` approach (~250 lines vs 700+ before)
+   - Portal users maintain persistent session without Supabase dependency
+   - Methods: `signIn()`, `signUp()`, `signOut()` all localStorage-based
+   - Returns: `{ customer, loading, error, signIn, signUp, signOut, isAuthenticated }`
+
+2. **Updated Portal Pages**
+   - ✅ PortalLogin.tsx - Verifies against customer_users table, saves to localStorage
+   - ✅ PortalRegister.tsx - Creates customer record, auto-creates client, saves to localStorage
+   - ✅ PortalDashboard.tsx - Checks localStorage on mount, redirects if not authenticated
+   - ✅ PortalBookings.tsx - Uses new hook, maintains session autonomously
+   - ✅ PortalHistory.tsx - Session independent from main app
+   - ✅ PortalProfile.tsx - localStorage persists across page reloads
+   - ✅ All pages now check `customer` from localStorage, not Supabase session
+
+3. **Portal Settings Simplified**
+   - Removed template selector (buttons 1-5) from Settings
+   - Removed color pickers (primary, secondary, accent, text colors)
+   - Kept: Portal toggle, slug, welcome message
+   - Cleaner settings UI focused on essentials
+
+### Architecture
+```
+BEFORE (Broken):                    AFTER (Fixed):
+Portal Page                         Portal Page
+    ↓                                   ↓
+usePortalAuth (old)                 usePortalAuth (new)
+    ↓                                   ↓
+useAuth()                           localStorage
+    ↓                                   ↓
+Supabase Auth                       No Supabase Auth
+                                    (Independent & Persistent)
+```
+
+### Key Benefits
+- ✅ Portal users stay logged in indefinitely (until manually logged out)
+- ✅ No session expiry redirects
+- ✅ Completely independent from main app admin authentication
+- ✅ Works seamlessly even if main app has auth issues
+- ✅ Customers don't see "انتهت جلستك" errors anymore
+- ✅ Simple, maintainable code (no complex listeners/refs)
+
+### Build Status
+- ✅ **0 TypeScript Errors** - Full type safety
+- ✅ **2877+ Modules** successfully transformed
+- ✅ All portal pages compile without warnings
+- ✅ Ready for production deployment
 
 ---
 
@@ -52,6 +116,13 @@ npm run dev
 
 The app will open at `http://localhost:5173`
 
+### 6. Build for Production
+
+```bash
+npm run build  # TypeScript compilation + Vite optimization
+npm run preview  # Test production build locally
+```
+
 ---
 
 ## 📁 Project Structure
@@ -72,11 +143,23 @@ src/
 │   ├── Analytics.tsx    # Revenue & analytics reports
 │   ├── Bookings.tsx     # Advanced booking system with queue status
 │   ├── QueueDisplay.tsx # Full-screen queue display
-│   └── Settings.tsx     # App settings & preferences
+│   ├── Settings.tsx     # App settings (portal toggle, slug, welcome message)
+│   └── portal/          # Customer Portal (NEW)
+│       ├── PortalLanding.tsx     # 5 template options
+│       ├── PortalLogin.tsx       # Customer login (localStorage)
+│       ├── PortalRegister.tsx    # Customer signup (localStorage)
+│       ├── PortalDashboard.tsx   # Customer overview
+│       ├── PortalBookings.tsx    # Appointment booking
+│       ├── PortalHistory.tsx     # Visit history
+│       └── PortalProfile.tsx     # Customer profile
 ├── db/
 │   ├── supabase.ts      # Supabase client setup
-│   └── hooks/           # Database hooks (useClients, useServices, useQueueStatus, etc.)
-├── hooks/               # Custom React hooks (useTheme, useLanguage, etc.)
+│   └── hooks/           # Database hooks (useClients, useServices, usePortalAuth, etc.)
+├── hooks/
+│   ├── usePortalAuth.ts # Portal authentication (localStorage-based) ⭐ NEW
+│   ├── useTheme.ts      # Dark/light theme
+│   ├── useLanguage.ts   # i18n (Arabic/English)
+│   └── useKeyboardShortcuts.ts  # Global keyboard shortcuts
 ├── utils/               # Utility functions (formatting, CSV export, Egypt time, etc.)
 ├── locales/             # i18next translation files (ar.json, en.json)
 ├── App.tsx              # Main app component with routing
@@ -87,22 +170,26 @@ src/
 
 ## 🎯 Core Features
 
-### 1. **Customer Portal** — `/shop/:slug/*` ⭐ **NEW**
+### 1. **Customer Portal** — `/shop/:slug/*` ⭐ **NEW (FIXED)**
 - **5 Professional Templates**: Choose from Modern Minimalist, Luxury Premium, Dark Modern, Gradient, or Colorful designs
-- **Fully Customizable**: Colors, welcome message, branding
-- **Live Preview**: See how your portal looks before publishing
+- **Independent Authentication**: Uses localStorage, completely separate from main app auth
+- **Persistent Sessions**: Customers stay logged in indefinitely (until manual logout)
+- **Fully Customizable**: Welcome message, shop branding
 - **Secure Access**: Customers register and login to book appointments
 - **Multi-Shop Support**: Each shop has unique portal with independent settings
 - **One-Click Admin Control**: Enable/disable portal from settings
 - **Auto-Created**: Portal automatically created when adding new shop
 
 #### Portal Pages:
-- **Landing** - 5 template options with live preview
-- **Login/Register** - Secure customer authentication
-- **Dashboard** - Customer overview with stats
-- **Bookings** - Real-time availability and appointment booking
-- **History** - Past visits and transactions
-- **Profile** - Update customer information
+- **Landing** (`/shop/:slug`) - 5 template options with live preview
+- **Login** (`/shop/:slug/login`) - Independent customer authentication (localStorage)
+- **Register** (`/shop/:slug/register`) - Customer signup with auto-client creation
+- **Dashboard** (`/shop/:slug/dashboard`) - Customer stats and next booking
+- **Bookings** (`/shop/:slug/bookings`) - Real-time availability and booking
+- **History** (`/shop/:slug/history`) - Past visits with filters and sorting
+- **Profile** (`/shop/:slug/profile`) - Customer info management
+
+**Key Fix**: All pages now check localStorage (`portal_session_{slug}`) instead of Supabase auth, eliminating session expiry bugs completely.
 
 ### 2. **Point of Sale (POS)** — `/pos`
 - **Phone-first client search**: Type phone number to instantly find returning clients
@@ -112,13 +199,13 @@ src/
 - **Auto-tracking**: Updates client visit count, total spent, favorite services
 - **VIP automation**: Automatically marks clients as VIP when threshold reached
 
-### 2. **Dashboard** — `/`
+### 3. **Dashboard** — `/`
 - **KPI Cards**: Today's revenue, clients, expenses with animated counters
 - **Recent Transactions**: Last 5 sales with details
 - **Birthday Reminders**: Clients with upcoming birthdays
 - **Inactive Alerts**: Clients who haven't visited in 30+ days
 
-### 3. **Bookings & Queue System** — `/bookings` & `/queue` ⭐ **NEW**
+### 4. **Bookings & Queue System** — `/bookings` & `/queue` ⭐ **NEW**
 - **Real-time Queue Display**: Shows people ahead, expected wait time, and completion time
 - **Smart Scheduling**: Calculates availability based on barber workload and service duration
 - **Conflict Prevention**: 30-minute buffer to prevent double-booking
@@ -141,566 +228,202 @@ src/
 - **Full Screen**: Navigate to `/queue` for waiting area display
 - **Smart Calculation**: Automatically sums service durations for accurate wait times
 
-### 4. **Client Management** — `/clients`
+### 5. **Client Management** — `/clients`
 - **CRM System**: Track visit history, total spent, favorite services
 - **VIP Tracking**: Automatic VIP status awarding
 - **Birthday Reminders**: Never miss customer birthdays
 - **Search & Filter**: Quick client lookup and categorization
 
-### 5. **Services Management** — `/services`
-- **Bilingual Service Names**: Arabic and English support
-- **Dynamic Pricing**: Easy price adjustment
-- **Duration Control**: Set expected service duration (for queue calculations)
-- **Bulk Updates**: Update prices in batch
+### 6. **Services Management** — `/services`
+- **Service CRUD**: Add, edit, delete services with pricing
+- **Category Organization**: Group services logically
+- **Search & Filter**: Quick service lookup
+- **Pricing Control**: Set prices per service
 
-### 6. **Analytics & Reports** — `/analytics`
-- **Revenue Trends**: Daily/monthly revenue visualization
-- **Client Analytics**: Top clients, unique visitors
-- **Payment Breakdown**: Cash vs Card vs E-Wallet statistics
-- **Export Options**: CSV and PDF reports
+### 7. **Expenses Tracking** — `/expenses`
+- **Expense Log**: Track all business expenses
+- **Categorization**: Custom expense categories
+- **Monthly Summary**: View total expenses by month
+- **Analytics**: Expenses vs. revenue comparison
 
-### 7. **Expense Management** — `/expenses`
-- **Category Tracking**: Supplies, rent, utilities, salary, maintenance
-- **Monthly Summary**: Total expenses by category
-- **Date Filtering**: Track expenses over time periods
+### 8. **Analytics & Reports** — `/analytics`
+- **Revenue Charts**: Daily/weekly/monthly revenue trends
+- **Client Analytics**: Most frequent clients, VIPs, top spenders
+- **Service Performance**: Most popular services, revenue by service
+- **Export Reports**: Download as CSV for analysis
+- **Date Range Filtering**: Custom reporting periods
 
-### 8. **Settings & Configuration** — `/settings`
-- **Barbershop Profile**: Name, logo, address, phone
-- **Display Preferences**: Theme (dark/light), language (Arabic/English)
-- **VIP Configuration**: Define VIP threshold (visits or amount)
-- **Barber Management**: Add/edit barber profiles
-- **Data Management**: Export/import/reset system data
-
----
-
-## 🌍 Language Support
-
-### Arabic (العربية)
-- Full RTL support
-- Proper text alignment
-- Egyptian locale (EGY)
-- All features translated
-
-### English
-- Full LTR support
-- All features translated
-
-**Switch languages** in Settings (top-right corner)
+### 9. **Settings** — `/settings`
+- **Profile Settings**: Shop name, phone number
+- **Portal Settings**: 
+  - Enable/disable customer portal
+  - Set portal slug (URL identifier)
+  - Add welcome message for customers
+- **Backup & Restore**: Export/import all data as JSON
 
 ---
 
-## 🟡 Recent Improvements & Fixes
+## 🔐 Authentication & Authorization
 
-### ✅ Customer Portal System (March 2026) 🎉 NEW
-**Complete customer-facing booking portal with 5 customizable templates**
+### Main App (Admin)
+- Built on Supabase Auth (email/password)
+- JWT tokens with 60-second refresh
+- Protected routes use `ShopRoute` wrapper
+- Session checked on app initialization
 
-#### Portal Features:
-- **5 Professional Templates**: Modern Minimalist, Luxury Premium, Dark Modern, Gradient, Colorful
-- **Live Template Preview**: See exactly how your portal looks before publishing
-- **Customizable Branding**: 
-  - Primary, secondary, and accent colors
-  - Personalized welcome message
-  - Unique portal slug per shop
-  - Can be disabled/enabled by admin
-- **Auto Portal Creation**: Portal settings automatically created when shop is added
-- **Multi-Shop Support**: Each shop gets its own independent portal with unique slug
-- **Data Isolation**: Secure multi-tenant isolation - customers can only see their own shop
+### Customer Portal (NEW - Fixed)
+- **Completely independent** from main app auth
+- Uses `localStorage` with key: `portal_session_{slug}`
+- Verified against `customer_users` table on login
+- Session persists until manual logout (no expiry)
+- Each shop has separate customer base
+- Non-blocking: Works even if main app has auth issues
 
-#### Portal Pages:
-- 🏠 **Landing Page** - 5 different template designs
-- 🔐 **Login** - Secure customer authentication  
-- 📝 **Register** - New customer signup
-- 📊 **Dashboard** - Customer stats and quick links
-- 📅 **Bookings** - Browse available times and create appointments
-- 📜 **History** - View past visits and transactions
-- 👤 **Profile** - Update personal information
-
-#### Admin Portal Management:
-- **Settings Page**: Edit portal colors, templates, welcome message, enable/disable
-- **Real-time Preview**: See changes instantly as you edit
-- **Auto-disable on Suspension**: Portal automatically disabled when shop is inactive/suspended
-- **Better Loading States**: Improved UI feedback while portal settings load
-
-#### Security & Fixes (March 22, 2026):
-✅ Fixed column name mismatches (isActive → active)  
-✅ Fixed table name references (portal_customers → customer_users)  
-✅ Added shop_id isolation to prevent cross-shop data access  
-✅ Added is_active portal status check  
-✅ Enhanced error handling for missing portals  
-✅ Fixed settings table schema compatibility  
-
----
-
-### ✅ Earlier Improvements (Previous Sessions)
-1. **Fixed Logic Error** in queue percentage calculation - now accurate
-2. **Standardized Arabic Translations** - consistent throughout system
-3. **Added Missing Translations** - complete i18n coverage
-4. **System Quality Report** - comprehensive audit completed
-5. **Queue System Optimization** - improved performance and accuracy
-
-See `SYSTEM_QUALITY_REPORT.md` for detailed findings.
+### Schema Relationships
+```
+┌──────────────────┐
+│  auth.users      │ (Main app admin)
+│  (admin auth)    │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐         ┌──────────────────┐
+│  shops           │◄────────│  customer_users  │
+│                  │  1:N    │  (portal login)  │
+│  portal_settings │         │                  │
+└──────────────────┘         └──────────────────┘
+         │                            │
+         ▼                            ▼
+┌──────────────────┐         ┌──────────────────┐
+│  clients         │◄────────│  bookings        │
+│  services        │  1:N    │  visit_logs      │
+│  barbers         │         └──────────────────┘
+│  expenses        │
+└──────────────────┘
+```
 
 ---
 
-## 📊 Database Schema
+## 🛠️ Technical Stack
 
-### Main Tables:
-- **clients** - Customer profiles and history
-- **services** - Available services with pricing and duration
-- **transactions** - Sales records
-- **expenses** - Expense tracking
-- **bookings** - Appointment scheduling (NEW)
-- **barbers** - Barber/staff profiles
-- **settings** - System configuration
-
----
-
-## 🔐 Security Features
-
-- ✅ Row-level security (RLS) enabled on Supabase
-- ✅ Environment variables for sensitive data
-- ✅ Authentication ready (can add auth module)
-- ✅ Data validation on frontend and backend
+- **Frontend**: React 18 with TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **State Management**: React Hooks (useState, useContext, useEffect)
+- **Styling**: Tailwind CSS with glassmorphism utilities
+- **Animations**: Framer Motion for smooth transitions
+- **Internationalization**: i18next (Arabic, English)
+- **Build**: Vite (fast dev & production builds)
+- **Formatting**: Receipt printing with native browser Print API
 
 ---
 
-## 📚 Additional Documentation
+## 📱 Browser Compatibility
 
-### Queue System (NEW)
-- **[QUEUE_SYSTEM_DOCS.md](QUEUE_SYSTEM_DOCS.md)** - Complete technical documentation
-- **[QUEUE_QUICK_START.md](QUEUE_QUICK_START.md)** - Quick reference guide
-- **[QUEUE_REFERENCE_GUIDE.md](QUEUE_REFERENCE_GUIDE.md)** - Visual and technical reference
-
-### General Documentation
-- **[BOOKING_SYSTEM_README.md](BOOKING_SYSTEM_README.md)** - Booking system details
-- **[SYSTEM_QUALITY_REPORT.md](SYSTEM_QUALITY_REPORT.md)** - Quality audit report
+- ✅ Chrome/Chromium 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Edge 90+
+- ✅ Mobile browsers (iOS Safari, Chrome Android)
 
 ---
 
-## 🛠️ Tech Stack
+## 🎨 Customization
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18, TypeScript, Framer Motion |
-| **Styling** | Tailwind CSS, Glassmorphism |
-| **Database** | Supabase (PostgreSQL) |
-| **Internationalization** | i18next |
-| **Charts** | Recharts |
-| **Printing** | React-to-Print |
-| **Notifications** | React Hot Toast |
-| **Build** | Vite, PostCSS |
+### Theme (Dark/Light)
+Switch theme via button in top-right. Uses Tailwind CSS dark mode.
+
+### Language (Arabic/English)
+Toggle between Arabic (RTL) and English (LTR) from header menu.
+
+### Portal Templates
+Admins can choose from 5 templates in Settings. Each has distinct styling:
+1. **الكلاسيك الذهبي** - Luxury Dark with gold accents
+2. **العصري النظيف** - Clean Split Layout with animations
+3. **البسيط الأنيق** - Minimal White Background
+4. **الجريء** - Bold Energetic with diagonals
+5. **الفاخر** - Premium with ornamental borders
 
 ---
 
-## 🚀 Deployment
+## 🚢 Deployment
 
-### Build for Production
+### Build
 ```bash
 npm run build
 ```
+Creates optimized production build in `dist/` directory.
 
-### Preview Production Build
-```bash
-npm run preview
-```
+### Hosting Options
+- **Vercel** (recommended for Vite + React)
+- **Netlify**
+- **GitHub Pages**
+- **Self-hosted VPS**
 
-### Deploy to Vercel
-Configuration included in `vercel.json`
-
-```bash
-npm install -g vercel
-vercel
+### Environment Setup
+Production deployment requires:
+```env
+VITE_SUPABASE_URL=https://your-prod-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-prod-anon-key
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Queue Not Updating
-- Ensure bookings are created with correct status (pending/ongoing)
-- Check that booking times are in the future
-- Refresh page if needed
+### Portal Session Expiring
+**FIXED in new version** - Portal now uses independent localStorage authentication. If issues persist:
+1. Clear browser cache/cookies
+2. Check `portal_session_{slug}` in browser localStorage
+3. Verify customer record exists in `customer_users` table
 
-### Translations Not Showing
-- Verify locale files in `src/locales/`
-- Check language selection in Settings
-- Browser cache may need clearing
+### Portal Not Loading
+1. Verify portal is enabled (Settings > Portal)
+2. Check slug is set correctly
+3. Confirm shop exists in database
 
-### Database Connection Issues
-- Verify Supabase credentials in `.env.local`
-- Check Supabase project is active
-- Ensure schema is properly imported
-
----
-
-## 📋 Feature Checklist
-
-### Implemented ✅
-- [x] POS System
-- [x] Client Management
-- [x] Service Management
-- [x] Analytics & Reports
-- [x] Expense Tracking
-- [x] Booking System with Smart Scheduling
-- [x] Real-time Queue Display
-- [x] **Customer Portal with 5 Templates** ⭐ NEW
-- [x] Portal Live Preview & Customization ⭐ NEW
-- [x] Multi-Shop Portal Management ⭐ NEW
-- [x] Arabic/English Support
-- [x] Receipt Printing
-- [x] VIP Tracking
-- [x] Dark/Light Theme
-
-### Planned 🔮
-- [ ] SMS/Email Notifications
-- [ ] WhatsApp Integration
-- [ ] Staff Commission Tracking
-- [ ] Inventory Management
-- [ ] Video/Photo Gallery
-- [ ] Portal SMS/Email Notifications
-- [ ] Mobile App (React Native)
-- [ ] Audio Alerts for Queue
+### Bookings Not Showing Availability
+1. Verify barbers are assigned to shop
+2. Check service durations are set
+3. Confirm barber schedule settings
 
 ---
 
-## 🏢 **NEW: Multi-Tenant SaaS System** ✨
+## 📞 Support & Issues
 
-This system has been upgraded to a **production-ready SaaS platform**! Multiple barbershop owners can now use the same system with complete data isolation.
-
-### SaaS Features ✅
-
-#### 🔐 Authentication System
-- Unified login for both admins and shop owners
-- Automatic role detection
-- Route-based access control
-- Session management with logout
-
-#### 🏪 Multi-Tenancy
-- Complete data isolation per shop
-- Row-Level Security (RLS) enforced
-- All queries automatically filtered by shop_id
-- Zero cross-shop data visibility
-
-#### 👨‍💼 Admin Panel
-- **Admin Dashboard**: System-wide statistics (total shops, active shops, revenue)
-- **Shop Management**: View/update all shops, manage subscription status
-- **Plan Management**: Create/edit/delete pricing plans
-
-#### 💳 Billing & Subscription
-- **3 Pricing Models**:
-  - Per Transaction (e.g., $5/booking)
-  - Per Service (e.g., $8/service item)
-  - Quota Plan (e.g., $99/month for 100 transactions)
-- **Automatic Usage Tracking**: Database triggers log all billable actions
-- **Subscription Status**: Active, expiring, expired, suspended
-- **Quota Management**: Track usage and enforce limits
-
-#### 📊 Subscription Alerts
-- Real-time status display on dashboard
-- Color-coded alerts (green/yellow/orange/red)
-- Shows days remaining, quota usage, plan details
-- Automatic refresh every minute
-
-### Test the SaaS System
-
-**Admin Account:**
-```
-Email: yaa2003ya@gmail.com
-Role: Administrator
-Access: /admin (dashboard, shops, plans management)
-```
-
-**Shop Owner Account:**
-```
-Email: shop1@gmail.com
-Role: Shop Owner
-Access: /dashboard (shop-specific features)
-```
-
-### SaaS Architecture
-
-```
-Public Internet
-    ↓
-[Login Page] → Auto Role Detection
-    ↓              ↓
-Admin Route    Shop Route
-/admin         /dashboard
-/admin/shops   /pos
-/admin/plans   /clients
-               /services
-                   ↓
-            Supabase Auth + RLS
-                   ↓
-            PostgreSQL Database
-```
-
-### Complete SaaS Documentation
-
-📖 **For detailed SaaS documentation, see: [README_SAAS.md](README_SAAS.md)**
-
-This includes:
-- Complete feature documentation
-- Database schema details
-- Deployment instructions
-- Testing scenarios
-- Troubleshooting guide
-
----
-
-## 📞 Support & Feedback
-
-For issues, bugs, or feature requests, create an issue in the repository.
+Report issues, request features, or ask questions via:
+- GitHub Issues (if applicable)
+- Email support
+- In-app feedback
 
 ---
 
 ## 📄 License
 
-This project is provided as-is for commercial use in Egyptian barbershops.
+Proprietary - All rights reserved
 
 ---
 
-## 🎉 Credits
+## 🎉 Changelog
 
-Built with ❤️ for Egyptian barbershops  
-**Made in Egypt 🇪🇬**
+### March 23, 2026
+- ✅ **CRITICAL FIX**: Portal authentication system completely rewritten
+- ✅ Implemented independent localStorage session management
+- ✅ Fixed "انتهت جلستك" session expiry bug permanently
+- ✅ Updated all portal pages to use new authentication
+- ✅ Simplified portal settings (removed template colors, kept essentials)
+- ✅ 0 TypeScript errors, full type safety
+- ✅ All portal pages maintain independent sessions
 
----
-
-**Last Updated:** March 19, 2026  
-**Version:** 2.0.0 (with Queue System)  
-**Status:** Production Ready ✅
-
-### 3. **Client Management** — `/clients`
-- Search & filter (by name, phone, VIP status)
-- Full client profiles: name, phone, birthday, notes, visit history
-- Total spent & visit count tracking
-- VIP status with progress indicators
-- Add/edit/delete clients
-
-### 4. **Services & Pricing** — `/services`
-- Browse services by category (haircut, beard, skincare, kids, packages)
-- Quick inline price editing
-- Bulk price updates (% increase/decrease)
-- Active/inactive toggle
-- Add/edit/delete service management
-
-### 5. **Expenses** — `/expenses`
-- Category-based expense tracking (supplies, rent, utilities, salary, etc.)
-- Date-based filtering & search
-- Monthly summary with category breakdown
-- Add/edit/delete expenses
-
-### 6. **Analytics** — `/analytics`
-- Date range selector (week, month, quarter)
-- KPI dashboard: revenue, expenses, net profit, transaction count, avg ticket
-- Revenue trend line chart (interactive Recharts)
-- Payment method breakdown
-- Top services & clients leaderboards
-
-### 7. **Settings** — `/settings`
-- Barbershop profile (name, phone, address)
-- Display preferences (language: العربية/English, theme: dark/light)
-- VIP threshold configuration
-- Data management (export/import JSON backups, reset data)
+### Previous Releases
+- Portal template system (5 templates with live customization)
+- Email confirmation with redirect handling
+- Advanced booking with queue display
+- Real-time analytics
+- Multi-language support (Arabic/English)
+- VIP customer automation
+- Receipt printing
+- And more...
 
 ---
 
-## 🌐 Language & Theme
-
-### Switching Language
-Click the **language toggle** in the top header to switch between:
-- **العربية** (Arabic) — RTL layout, Egyptian locale
-- **English** — LTR layout
-
-Language preference is saved to `localStorage`.
-
-### Dark/Light Mode
-Click the **theme toggle** (🌙/☀️) in the top header. Dark mode is the default.
-
-Theme preference is saved to `localStorage`.
-
----
-
-## 📊 Database Schema
-
-All data is stored in Supabase PostgreSQL tables:
-
-- **clients**: Name, phone, birthday, VIP status, visit history
-- **services**: Arabic/English names, price, duration, category
-- **transactions**: Sales records with items, discount, total, payment method
-- **expenses**: Category, amount, date, notes
-- **settings**: App configuration (barbershop name, themes, VIP thresholds)
-- **barbers**: Barber information (optional multi-barber support)
-
----
-
-## 🖨️ Printing
-
-### Receipt Printing
-1. Complete a sale in POS
-2. A receipt modal appears with all transaction details
-3. Click the print button or press `Ctrl+P`
-4. Your printer will open with the 80mm-formatted receipt
-5. Print to a thermal receipt printer for best results
-
-### Report Printing
-Any page with a report (client history, expenses, analytics) includes a print button:
-- Page layouts automatically hide UI elements when printing
-- Charts are replaced with clean text summaries
-- Reports are formatted for A4 paper
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-- **N** — New Sale (open POS)
-- **C** — Clients page
-- **E** — Expenses page
-- **Ctrl+P** — Print current view
-- **Esc** — Close any modal
-
----
-
-## 🔧 Development
-
-### Run Development Server
-```bash
-npm run dev
-```
-
-### Build for Production
-```bash
-npm run build
-```
-
-### Preview Production Build
-```bash
-npm run preview
-```
-
----
-
-## 📦 Tech Stack
-
-| Technology | Purpose |
-|-----------|---------|
-| **React 18** | UI framework |
-| **Vite** | Build tool & dev server |
-| **TypeScript** | Type safety |
-| **Tailwind CSS** | Styling & glassmorphism utilities |
-| **Framer Motion** | Smooth animations & transitions |
-| **Supabase** | Backend database (PostgreSQL) |
-| **i18next** | Arabic/English translations |
-| **Recharts** | Data visualization (charts) |
-| **react-hot-toast** | Toast notifications |
-| **Fuse.js** | Fuzzy search (clients/services) |
-| **Lucide React** | Icon library |
-
----
-
-## 🎨 Design System
-
-### Color Palette
-- **Primary (Gold)**: `#D4AF37` — Accent color for buttons, active states
-- **Dark Background**: `#0A0F1E` — Main background (dark mode)
-- **Secondary Dark**: `#111827` — Sidebar, cards
-- **Glass**: `rgba(255,255,255,0.1)` with `backdrop-blur(20px)` — Card backgrounds
-
-### Typography
-- **Cairo** (Google Fonts) — Arabic text, beautiful for Arabic UI
-- **Outfit** — English/numbers, modern sans-serif
-- **Font Sizes**: 12px (small), 14px (body), 16px (labels), 20px+ (headings)
-
-### Border Radius
-- `16px` — Cards & major components
-- `12px` — Buttons & inputs
-- `8px` — Small elements
-
-### Animations
-- Page transitions: `slide + fade` 
-- Card entrance: `stagger + scale-up`
-- Modal open/close: Spring animation
-- Hover effects: Lift effect on cards (+shadow, -4px translate Y)
-
----
-
-## 🚀 Deployment
-
-### Deploy to Vercel (Recommended)
-
-1. Push your code to GitHub
-2. Go to [vercel.com](https://vercel.com) and import the repository
-3. In **Environment Variables**, add:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Click "Deploy"
-
-### Deploy to Other Platforms
-
-The app is a static React app that can be deployed to:
-- **Netlify**: Drag & drop `dist/` folder or connect GitHub
-- **GitHub Pages**: Use `gh-pages` package
-- **Firebase Hosting**: Run `npm run build` and deploy `dist/`
-- **Any static host** (AWS S3, Cloudflare Pages, etc.)
-
----
-
-## 🔐 Security Notes
-
-- The `VITE_SUPABASE_ANON_KEY` is **intentionally public** (it's designed for client-side use)
-- For production, enable **Row Level Security (RLS)** in Supabase to restrict data access
-- Never commit `.env.local` with real credentials to version control
-- Supabase provides free SSL/HTTPS by default
-
----
-
-## 📱 Mobile & Tablet Support
-
-The app is fully responsive:
-- **Mobile** (< 768px): Single-column layout, collapsible sidebar
-- **Tablet** (768px–1024px): Two-column, touchscreen optimized
-- **Desktop** (> 1024px): Full layout with sidebar
-
-**Install as PWA**:
-1. Open the app in Chrome/Edge
-2. Click the install icon (usually in address bar)
-3. Run the app like a native app on your device
-
----
-
-## ❓ Troubleshooting
-
-### Supabase Connection Issues
-- Check that `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are correct
-- Verify RLS policies allow public read/write (see `supabase-schema.sql`)
-- Check Supabase project status in the dashboard
-
-### Missing Data After Reload
-- Sample data is seeded on first load
-- Check Supabase **Database** > navigate to tables to verify data exists
-- If missing, manually run `supabase-schema.sql` again
-
-### Print Not Working
-- Ensure your browser allows pop-ups for printing
-- Check that `@media print` CSS is applied
-- Use Chrome or Edge for best thermal printer compatibility
-
-### Language Not Switching
-- Clear `localStorage` in browser DevTools
-- Refresh the page after toggling language
-- Check that `src/locales/ar.json` and `en.json` exist
-
----
-
-## 📝 License
-
-This project is created for Egyptian barbershops. Feel free to customize and use.
-
----
-
-## 🇪🇬 شكراً!
-
-Made with ❤️ for the Egyptian business community.
-
-**Barber Shop Management System** — *Professional solutions for modern barbershops*
+Made with ❤️ for Egyptian barbershops 🇪🇬

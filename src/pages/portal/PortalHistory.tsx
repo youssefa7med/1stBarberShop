@@ -12,11 +12,11 @@ export function PortalHistory() {
   const navigate = useNavigate()
 
   // Auth & Settings
-  const { isAuthenticated, loading, customerId, shopId } = usePortalAuth(slug)
+  const { customer, loading: authLoading } = usePortalAuth(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
 
   // History data
-  const { history, loading: historyLoading, error: historyError, getStats } = usePortalHistory(shopId || undefined, customerId || undefined)
+  const { history, loading: historyLoading, error: historyError, getStats } = usePortalHistory(customer?.shopId, customer?.id)
 
   // Filters & Sorting
   const [sortBy, setSortBy] = useState<SortType>('date-desc')
@@ -33,10 +33,10 @@ export function PortalHistory() {
   }, [settings?.shop_name])
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !customer) {
       navigate(`/shop/${slug}/login`, { replace: true })
     }
-  }, [isAuthenticated, loading, slug, navigate])
+  }, [customer, authLoading, slug, navigate])
 
   // Filter and sort history
   const filteredHistory = useMemo(() => {
@@ -84,7 +84,7 @@ export function PortalHistory() {
   const stats = getStats()
   const primaryColor = settings?.primary_color || '#FFD700'
 
-  if (loading || settingsLoading || historyLoading) {
+  if (authLoading || settingsLoading || historyLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">
