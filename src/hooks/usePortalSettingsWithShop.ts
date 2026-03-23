@@ -29,23 +29,7 @@ export function usePortalSettingsWithShop(slug?: string) {
       // First check if portal settings exist with this slug
       const { data: portalData, error: portalErr } = await supabase
         .from('portal_settings')
-        .select(`
-          id,
-          shop_id,
-          is_active,
-          template_id,
-          primary_color,
-          secondary_color,
-          accent_color,
-          text_color,
-          logo_url,
-          portal_slug,
-          welcome_message,
-          shops (
-            id,
-            name
-          )
-        `)
+        .select()
         .eq('portal_slug', portalSlug)
         .single()
 
@@ -67,16 +51,23 @@ export function usePortalSettingsWithShop(slug?: string) {
         return null
       }
 
+      // Now fetch the shop name
+      const { data: shopData } = await supabase
+        .from('shops')
+        .select('name')
+        .eq('id', portalData.shop_id)
+        .single()
+
       const settingsWithShop: PortalSettingsWithShop = {
         id: portalData.id,
         shop_id: portalData.shop_id,
-        shop_name: (portalData.shops as any)?.name || 'محل',
+        shop_name: shopData?.name || 'محل',
         is_active: portalData.is_active,
         template_id: portalData.template_id,
-        primary_color: portalData.primary_color,
-        secondary_color: portalData.secondary_color,
-        accent_color: portalData.accent_color,
-        text_color: portalData.text_color,
+        primary_color: portalData.primary_color || '#3B82F6',
+        secondary_color: portalData.secondary_color || '#1E40AF',
+        accent_color: portalData.accent_color || '#0EA5E9',
+        text_color: portalData.text_color || '#FFFFFF',
         logo_url: portalData.logo_url,
         portal_slug: portalData.portal_slug,
         welcome_message: portalData.welcome_message,

@@ -66,6 +66,11 @@ export const usePortalSettings = () => {
           shop_id: shopId,
           is_active: false,
           portal_slug: slug,
+          template_id: 1,
+          primary_color: '#3B82F6',
+          secondary_color: '#1E40AF',
+          accent_color: '#0EA5E9',
+          text_color: '#FFFFFF',
         })
         .select()
         .single()
