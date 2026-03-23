@@ -26,8 +26,8 @@ export function usePortalSettingsWithShop(slug?: string) {
       setLoading(true)
       setError(null)
 
-      // Join portal_settings with shops to get shop_name
-      const { data, error: err } = await supabase
+      // First check if portal settings exist with this slug
+      const { data: portalData, error: portalErr } = await supabase
         .from('portal_settings')
         .select(`
           id,
@@ -49,30 +49,37 @@ export function usePortalSettingsWithShop(slug?: string) {
         .eq('portal_slug', portalSlug)
         .single()
 
-      if (err) {
-        console.error('Error fetching portal settings:', err)
-        setError('البوربتال غير موجود')
+      if (portalErr) {
+        console.error('Error fetching portal settings:', portalErr)
+        setError('البوابة غير موجودة')
         return null
       }
 
-      if (!data) {
-        setError('البوربتال غير موجود')
+      if (!portalData) {
+        setError('البوابة غير موجودة')
+        return null
+      }
+
+      // Check if portal is active
+      if (!portalData.is_active) {
+        console.warn('Portal exists but is not active:', portalSlug)
+        setError('البوابة معطلة حالياً')
         return null
       }
 
       const settingsWithShop: PortalSettingsWithShop = {
-        id: data.id,
-        shop_id: data.shop_id,
-        shop_name: (data.shops as any)?.name || 'محل',
-        is_active: data.is_active,
-        template_id: data.template_id,
-        primary_color: data.primary_color,
-        secondary_color: data.secondary_color,
-        accent_color: data.accent_color,
-        text_color: data.text_color,
-        logo_url: data.logo_url,
-        portal_slug: data.portal_slug,
-        welcome_message: data.welcome_message,
+        id: portalData.id,
+        shop_id: portalData.shop_id,
+        shop_name: (portalData.shops as any)?.name || 'محل',
+        is_active: portalData.is_active,
+        template_id: portalData.template_id,
+        primary_color: portalData.primary_color,
+        secondary_color: portalData.secondary_color,
+        accent_color: portalData.accent_color,
+        text_color: portalData.text_color,
+        logo_url: portalData.logo_url,
+        portal_slug: portalData.portal_slug,
+        welcome_message: portalData.welcome_message,
       }
 
       setSettings(settingsWithShop)

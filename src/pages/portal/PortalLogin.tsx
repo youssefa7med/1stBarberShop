@@ -136,18 +136,18 @@ export function PortalLogin() {
           
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-3">
             <p className="text-red-300 text-sm">
-              لم يتم العثور على بيانات البوابة. قد يكون السبب:
+              {!settings ? 'لم يتم العثور على بيانات البوابة' : 'البوابة معطلة حالياً'}
             </p>
             <ul className="text-red-300/80 text-xs space-y-2 text-right">
-              <li>• البوابة لم يتم تفعيلها من لوحة التحكم</li>
-              <li>• الرابط غير صحيح</li>
-              <li>• لم يتم إعداد البوابة بعد</li>
+              <li>• تأكد من صحة الرابط</li>
+              <li>• قد تحتاج البوابة إلى تفعيل</li>
+              <li>• اتصل بمدير المحل</li>
             </ul>
           </div>
 
           <div className="space-y-3">
             <p className="text-slate-400 text-sm">
-              👇 اتصل بمدير المحل لتفعيل البوابة من الإعدادات
+              👇 اتصل بمدير المحل للمزيد من المساعدة
             </p>
             <button
               onClick={() => window.location.reload()}
