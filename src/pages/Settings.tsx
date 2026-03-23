@@ -281,13 +281,13 @@ export const Settings: React.FC = () => {
               <span className="text-gray-300">تفعيل البوابة</span>
               <button
                 onClick={() => setPortalFormData(prev => ({ ...prev, is_active: !prev.is_active }))}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition ${
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
                   portalFormData.is_active ? 'bg-green-500' : 'bg-gray-600'
                 }`}
               >
                 <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition ${
-                    portalFormData.is_active ? 'translate-x-7' : 'translate-x-1'
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                    portalFormData.is_active ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>

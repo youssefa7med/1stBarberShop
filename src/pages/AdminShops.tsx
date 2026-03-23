@@ -172,10 +172,13 @@ export const AdminShops = () => {
           const randomNum = Math.floor(1000 + Math.random() * 9000)
           const slug = name
             .toLowerCase()
+            .replace(/[\u0600-\u06FF]/g, '') // remove Arabic chars
             .replace(/\s+/g, '-')
             .replace(/[^\w-]/g, '')
-            .substring(0, 30)
-          return `${slug}-${randomNum}`
+            .trim()
+          // If slug is empty (all Arabic), use 'shop' as base
+          const base = slug.length > 0 ? slug.substring(0, 20) : 'shop'
+          return `${base}-${randomNum}`
         }
 
         // Create portal settings for new shop

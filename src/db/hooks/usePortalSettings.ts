@@ -63,8 +63,9 @@ export const usePortalSettings = () => {
     if (!shopId) return
 
     try {
-      // Generate slug from shop ID
-      const slug = `shop-${shopId.substring(0, 8)}`
+      // Generate slug from shop ID - will be updated when slug is provided
+      const randomNum = Math.floor(1000 + Math.random() * 9000)
+      const slug = `shop-${randomNum}`
 
       const { data, error } = await supabase
         .from('portal_settings')
