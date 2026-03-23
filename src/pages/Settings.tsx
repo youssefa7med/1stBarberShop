@@ -15,7 +15,7 @@ export const Settings: React.FC = () => {
   const { language, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const { getSetting, updateSetting } = useSettings()
-  const { portalSettings, updatePortalSettings, loading: portalLoading } = usePortalSettings()
+  const { portalSettings, updatePortalSettings, loading: portalLoading, fetchPortalSettings } = usePortalSettings()
 
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -122,9 +122,13 @@ export const Settings: React.FC = () => {
         portal_slug: portalFormData.portal_slug,
         welcome_message: portalFormData.welcome_message,
       })
+      // Refetch to ensure state is fully updated before switching to view mode
+      await fetchPortalSettings()
       setIsPortalEditing(false)
+      toast.success('تم حفظ إعدادات البوابة بنجاح ✓')
     } catch (err: any) {
       console.error('Error saving portal settings:', err)
+      toast.error('حدث خطأ في حفظ البيانات')
     } finally {
       setIsPortalSaving(false)
     }
