@@ -15,10 +15,13 @@ SELECT
 FROM services
 ORDER BY "createdAt" DESC;
 
--- Query 2: Check if RLS is enabled on services table
-SELECT publication, schemaname, tablename
-FROM pg_publication_tables
-WHERE tablename = 'services';
+-- Query 2: Check RLS status on services table
+SELECT 
+  schemaname,
+  tablename,
+  rowsecurity
+FROM pg_tables
+WHERE tablename = 'services' AND schemaname = 'public';
 
 -- Query 3: Check RLS policies for services table
 SELECT 
