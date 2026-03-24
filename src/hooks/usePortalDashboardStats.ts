@@ -76,7 +76,7 @@ export function usePortalDashboardStats(shopId?: string, customerId?: string, sl
 
       const { data: nextBookings, error: bookingErr } = await supabase
         .from('bookings')
-        .select('id, bookingtime, service_id')
+        .select('id, bookingtime, service_name, status')
         .eq('shop_id', shopId)
         .eq('clientphone', customerPhone)
         .in('status', ['pending', 'confirmed'])
@@ -99,16 +99,10 @@ export function usePortalDashboardStats(shopId?: string, customerId?: string, sl
 
       if (countErr) throw countErr
 
-      // Get service name for next booking
-      let serviceName = ''
-      if (nextBookings && nextBookings.length > 0) {
-        const { data: serviceData } = await supabase
-          .from('services')
-          .select('nameAr')
-          .eq('id', nextBookings[0].service_id)
-          .single()
-        serviceName = serviceData?.nameAr || 'خدمة'
-      }
+      // Use service_name directly from bookings table (already a snapshot field)
+      let serviceName = nextBookings && nextBookings.length > 0 
+        ? nextBookings[0].service_name || 'خدمة'
+        : ''
 
       const nextBooking = nextBookings && nextBookings.length > 0 
         ? {
