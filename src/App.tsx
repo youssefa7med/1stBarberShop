@@ -28,7 +28,7 @@ import { AdminBilling } from './pages/AdminBilling'
 import { ShopBilling } from './pages/ShopBilling'
 
 // Portal Pages
-import { PortalLogin } from './pages/portal/PortalLogin'
+import { PortalLoginSecure } from './pages/portal/PortalLoginSecure'
 import { PortalRegister } from './pages/portal/PortalRegister'
 import { PortalDashboard } from './pages/portal/PortalDashboard'
 import { PortalBookings } from './pages/portal/PortalBookings'
@@ -321,9 +321,9 @@ function App() {
             }
           />
 
-          {/* Portal Routes - Public, Slug-based */}
-          <Route path="/shop/:slug" element={<PortalLogin />} />
-          <Route path="/shop/:slug/login" element={<PortalLogin />} />
+          {/* Portal Routes - Public, Slug-based, Secure Auth */}
+          <Route path="/shop/:slug" element={<PortalLoginSecure />} />
+          <Route path="/shop/:slug/login" element={<PortalLoginSecure />} />
           <Route path="/shop/:slug/register" element={<PortalRegister />} />
           <Route path="/shop/:slug/dashboard" element={<PortalDashboard />} />
           <Route path="/shop/:slug/bookings" element={<PortalBookings />} />

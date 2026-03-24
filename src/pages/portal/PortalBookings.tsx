@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
-import { usePortalAuth } from '@/hooks/usePortalAuth'
+import { usePortalAuthSecure } from '@/hooks/usePortalAuthSecure'
 import { usePortalSettingsWithShop } from '@/hooks/usePortalSettingsWithShop'
 import { usePortalBookings } from '@/hooks/usePortalBookings'
 import { ArrowRight, X, CheckCircle, Clock, User, Calendar } from 'lucide-react'
@@ -26,7 +26,7 @@ export function PortalBookings() {
   const navigate = useNavigate()
   
   // Auth & Settings
-  const { customer, loading: authLoading } = usePortalAuth(slug || '')
+  const { customer, loading: authLoading } = usePortalAuthSecure(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
   
   // Booking data
@@ -39,7 +39,7 @@ export function PortalBookings() {
     createBooking,
     cancelBooking,
     getAvailableSlots
-  } = usePortalBookings(customer?.shopId, customer?.id)
+  } = usePortalBookings(customer?.shop_id, customer?.id)
 
   // UI State
   const [activeTab, setActiveTab] = useState<TabType>('new')

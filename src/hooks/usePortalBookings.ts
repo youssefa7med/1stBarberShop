@@ -44,13 +44,18 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
   const fetchServices = useCallback(async () => {
     if (!shopId) return
     try {
+      console.log('🔍 Fetching services for shop:', shopId)
       const { data, error: err } = await supabase
         .from('services')
         .select('id, nameEn, nameAr, durationMinutes, price')
         .eq('shop_id', shopId)
         .eq('active', true)
 
-      if (err) throw err
+      if (err) {
+        console.error('❌ Error fetching services:', err)
+        throw err
+      }
+      console.log('✅ Services fetched:', data?.length)
       setServices(data || [])
     } catch (err) {
       console.error('Error fetching services:', err)
@@ -62,14 +67,29 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
   const fetchBarbers = useCallback(async () => {
     if (!shopId) return
     try {
+      console.log('🔍 Fetching barbers for shop:', shopId)
       const { data, error: err } = await supabase
         .from('barbers')
         .select('id, name, email')
         .eq('shop_id', shopId)
         .eq('active', true)
-        .order('name')
+        .order('name', { ascending: true })
 
-      if (err) throw err
+      if (err) {
+        console.error('❌ Error fetching barbers:', err.code, err.message)
+        // Try alternative query without active filter
+        console.log('⚠️ Retrying without active filter...')
+        const { data: altData, error: altErr } = await supabase
+          .from('barbers')
+          .select('id, name, email')
+          .eq('shop_id', shopId)
+          .order('name', { ascending: true })
+
+        if (altErr) throw altErr
+        setBarbers(altData || [])
+        return
+      }
+      console.log('✅ Barbers fetched:', data?.length)
       setBarbers(data || [])
     } catch (err) {
       console.error('Error fetching barbers:', err)
@@ -103,41 +123,64 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
       barberId?: string
     ): Promise<string[]> => {
       try {
-        // Shop hours: 9 AM to 10 PM (13 hours), 30-min slots
+        console.log('⏰ Generating slots for:', bookingDate, 'barber:', barberId)
+        
+        // Shop hours: 9 AM to 10 PM, 30-min slots
         const slots: string[] = []
         const startHour = 9
         const endHour = 22
         const slotDuration = 30 // minutes
 
+        // Check if date is in future or today
+        const selectedDate = new Date(bookingDate)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        let startOffset = 0
+        if (selectedDate.toDateString() === today.toDateString()) {
+          // For today, skip past times
+          const now = new Date()
+          startOffset = Math.ceil((now.getHours() * 60 + now.getMinutes()) / slotDuration) * slotDuration
+        }
+
         for (let hour = startHour; hour < endHour; hour++) {
           for (let minutes = 0; minutes < 60; minutes += slotDuration) {
+            const minutesSinceStart = hour * 60 + minutes
+            if (minutesSinceStart < startOffset) continue // Skip past times
+
             const slotTime = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-
-            // Check if slot conflicts with existing bookings
-            const { data: existingBookings } = await supabase
-              .from('bookings')
-              .select('id')
-              .eq('booking_date', bookingDate)
-              .eq('assigned_barber_id', barberId || null)
-              .eq('status', 'pending')
-              .limit(1)
-
-            // Simplified availability check - in production would need more detail
-            const isAvailable = !existingBookings || existingBookings.length === 0
-
-            if (isAvailable) {
-              slots.push(slotTime)
-            }
+            slots.push(slotTime)
           }
         }
 
+        // Get booked times for this barber on this date
+        if (barberId) {
+          const { data: bookedSlots, error } = await supabase
+            .from('bookings')
+            .select('booking_time')
+            .eq('shop_id', shopId)
+            .eq('booking_date', bookingDate)
+            .eq('assigned_barber_id', barberId)
+            .in('status', ['confirmed', 'pending'])
+
+          if (error) {
+            console.warn('⚠️ Could not fetch booked slots:', error)
+          } else {
+            const bookedTimes = new Set(bookedSlots?.map(b => b.booking_time) || [])
+            const available = slots.filter(s => !bookedTimes.has(s))
+            console.log(`📅 Available: ${available.length}/${slots.length} slots`)
+            return available
+          }
+        }
+
+        console.log(`📅 Generated ${slots.length} total slots`)
         return slots
       } catch (err) {
-        console.error('Error getting available slots:', err)
+        console.error('❌ Error getting available slots:', err)
         return []
       }
     },
-    []
+    [shopId]
   )
 
   // Create new booking
@@ -176,13 +219,17 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
           notes: 'Booked via customer portal',
         }
 
-        const { data: booking, error: bookingErr } = await supabase
+        const { data: bookings, error: bookingErr } = await supabase
           .from('bookings')
           .insert([bookingData])
           .select()
-          .single()
 
         if (bookingErr) throw bookingErr
+        if (!bookings || bookings.length === 0) {
+          throw new Error('Failed to create booking')
+        }
+
+        const booking = bookings[0]
 
         // Create booking in customer_bookings table
         const customerBookingData = {
@@ -196,20 +243,22 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
           status: 'pending',
         }
 
-        const { data: customerBooking, error: custErr } = await supabase
+        const { data: customerBookings, error: custErr } = await supabase
           .from('customer_bookings')
           .insert([customerBookingData])
           .select()
-          .single()
 
         if (custErr) throw custErr
+        if (!customerBookings || customerBookings.length === 0) {
+          throw new Error('Failed to create customer booking')
+        }
 
         // Refresh bookings list
         await fetchCustomerBookings()
 
-        return customerBooking
+        return customerBookings[0]
       } catch (err: any) {
-        console.error('Error creating booking:', err)
+        console.error('❌ Error creating booking:', err)
         setError(err.message || 'خطأ في إنشاء الحجز')
         return null
       } finally {

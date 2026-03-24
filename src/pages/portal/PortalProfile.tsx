@@ -1,8 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { usePortalAuth } from '@/hooks/usePortalAuth'
+import { usePortalAuthSecure } from '@/hooks/usePortalAuthSecure'
 import { usePortalSettingsWithShop } from '@/hooks/usePortalSettingsWithShop'
-import { usePortalProfile } from '@/hooks/usePortalProfile'
 import { ArrowRight, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -11,11 +10,8 @@ export function PortalProfile() {
   const navigate = useNavigate()
 
   // Auth & Settings
-  const { customer, loading: authLoading } = usePortalAuth(slug || '')
+  const { customer, loading: authLoading, updateProfile } = usePortalAuthSecure(slug || '')
   const { settings, loading: settingsLoading } = usePortalSettingsWithShop(slug)
-
-  // Profile data
-  const { profile, loading: profileLoading, error: profileError, updateProfile } = usePortalProfile(customer?.id)
 
   // Form state
   const [isEditing, setIsEditing] = useState(false)
@@ -35,37 +31,41 @@ export function PortalProfile() {
     }
   }, [customer, authLoading, slug, navigate])
 
-  // Initialize form with profile data
+  // Initialize form with customer data
   useEffect(() => {
-    if (profile) {
+    if (customer) {
       setFormData({
-        name: profile.name,
-        email: profile.email || '',
-        phone: profile.phone || ''
+        name: customer.name || '',
+        email: customer.email || '',
+        phone: customer.phone || ''
       })
     }
-  }, [profile])
+  }, [customer])
 
   const handleEditToggle = () => {
     if (isEditing) {
       setFormData({
-        name: profile?.name || '',
-        email: profile?.email || '',
-        phone: profile?.phone || ''
+        name: customer?.name || '',
+        email: customer?.email || '',
+        phone: customer?.phone || ''
       })
     }
     setIsEditing(!isEditing)
   }
 
   const handleSave = async () => {
-    if (!formData.name || !formData.email || !formData.phone) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة')
+    if (!formData.name || !formData.phone) {
+      toast.error('يرجى ملء الحقول المطلوبة')
       return
     }
 
     setUpdating(true)
     try {
-      const success = await updateProfile(formData.name, formData.email, formData.phone)
+      const success = await updateProfile({
+        name: formData.name,
+        email: formData.email || undefined,
+        phone: formData.phone
+      })
       if (success) {
         toast.success('تم تحديث البيانات بنجاح')
         setIsEditing(false)
@@ -79,7 +79,7 @@ export function PortalProfile() {
     }
   }
 
-  if (authLoading || settingsLoading || profileLoading) {
+  if (authLoading || settingsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">
@@ -108,12 +108,7 @@ export function PortalProfile() {
           <p className="text-white/60">مع {settings?.shop_name}</p>
         </div>
 
-        {/* Error Message */}
-        {profileError && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-500/50 rounded-lg text-red-400">
-            {profileError}
-          </div>
-        )}
+
 
         {/* Profile Card */}
         <div className="bg-white/5 border border-white/10 rounded-lg p-8 space-y-6">
@@ -193,18 +188,18 @@ export function PortalProfile() {
               {/* Display Mode */}
               <div>
                 <label className="block text-sm font-medium mb-3 text-white/60">الاسم الكامل</label>
-                <p className="text-lg text-white font-semibold">{profile?.name}</p>
+                <p className="text-lg text-white font-semibold">{customer?.name || 'لم يتم إدخاله'}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-3 text-white/60">البريد الإلكتروني</label>
-                <p className="text-lg text-white font-semibold">{profile?.email || 'لم يتم إدخاله'}</p>
+                <p className="text-lg text-white font-semibold">{customer?.email || 'لم يتم إدخاله'}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-3 text-white/60">رقم الهاتف</label>
                 <p className="text-lg text-white font-semibold" dir="ltr">
-                  {profile?.phone || 'لم يتم إدخاله'}
+                  {customer?.phone || 'لم يتم إدخاله'}
                 </p>
               </div>
 
