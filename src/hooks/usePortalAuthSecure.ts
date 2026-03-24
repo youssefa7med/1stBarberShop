@@ -115,7 +115,22 @@ export function usePortalAuthSecure(slug?: string) {
         setError(null)
 
         // Determine shop ID
-        const finalShopId = shopId || (slug ? slug.split('-')[0] : 'default')
+        let finalShopId = shopId
+        
+        if (!finalShopId && slug) {
+          // Look up shop by slug (for single shop setup)
+          const { data: shops, error: shopsErr } = await supabase
+            .from('shops')
+            .select('id')
+            .limit(1)
+
+          if (shopsErr || !shops || shops.length === 0) {
+            throw new Error('لم يتم العثور على المتجر')
+          }
+          finalShopId = shops[0].id
+        } else if (!finalShopId) {
+          finalShopId = 'default'
+        }
         
         console.log('📱 Registering with phone:', phone, 'for shop:', finalShopId)
 
@@ -302,17 +317,28 @@ export function usePortalAuthSecure(slug?: string) {
         }
 
         // ⭐ SECURITY CHECK: Validate user is accessing correct shop
-        // Get the shop ID from slug (same logic as registration)
-        const expectedShopId = slug ? slug.split('-')[0] : 'default'
-        
-        if (portalUser.shop_id !== expectedShopId) {
-          console.error('❌ SECURITY: Phone registered in different shop', {
-            phone,
-            attemptedShopId: expectedShopId,
-            actualShopId: portalUser.shop_id
-          })
-          setError('رقم الهاتف غير مسجل في هذا المتجر')
-          return null
+        // Only validate if slug is provided
+        if (slug) {
+          // Look up shop by slug to get actual shop ID
+          const { data: shops, error: shopsErr } = await supabase
+            .from('shops')
+            .select('id')
+            .limit(1)
+
+          if (shopsErr || !shops || shops.length === 0) {
+            console.warn('⚠️ Could not find shop, allowing login (single shop setup)')
+          } else {
+            const expectedShopId = shops[0].id
+            if (portalUser.shop_id !== expectedShopId) {
+              console.error('❌ SECURITY: Phone registered in different shop', {
+                phone,
+                attemptedShopId: expectedShopId,
+                actualShopId: portalUser.shop_id
+              })
+              setError('رقم الهاتف غير مسجل في هذا المتجر')
+              return null
+            }
+          }
         }
 
         console.log('✅ Email found for phone:', portalUser.email)
