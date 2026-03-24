@@ -205,8 +205,8 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 SELECT 
   'ISOLATION AUDIT' as audit_type,
   'Shops' as entity,
-  (SELECT COUNT(*) FROM shops) as data_count,
-  (SELECT COUNT(DISTINCT shop_id) FROM bookings) as isolation_count,
+  (SELECT COUNT(*)::text FROM shops) as data_count,
+  (SELECT COUNT(DISTINCT shop_id)::text FROM bookings) as isolation_count,
   '✅ Complete' as status
 
 UNION ALL
