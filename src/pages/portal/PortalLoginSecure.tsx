@@ -256,7 +256,6 @@ export function PortalLoginSecure() {
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-800/60 border border-slate-700/50 hover:border-cyan-500/30 focus:border-cyan-500/60 rounded-lg text-white placeholder-slate-500 focus:outline-none transition duration-200 focus:ring-1 focus:ring-cyan-500/20"
                   placeholder="01012345678"
-                  dir="ltr"
                   required
                   disabled={loading}
                 />

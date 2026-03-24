@@ -137,33 +137,55 @@ export function usePortalAuthSecure(slug?: string) {
     [slug]
   )
 
-  // Login portal user
+  // Login portal user by phone
   const loginPortalUser = useCallback(
     async (phone: string, password: string) => {
       try {
         setLoading(true)
         setError(null)
 
-        // Sign in with Supabase auth
+        console.log('🔍 Looking up email for phone:', phone)
+
+        // Step 1: Lookup email using phone from portal_users
+        const { data: portalUser, error: lookupErr } = await supabase
+          .from('portal_users')
+          .select('id, email, phone, name')
+          .eq('phone', phone)
+          .maybeSingle()
+
+        if (lookupErr && lookupErr.code !== 'PGRST116') {
+          throw lookupErr
+        }
+
+        if (!portalUser || !portalUser.email) {
+          console.error('❌ Phone not found or no email registered:', phone)
+          setError('رقم الهاتف غير مسجل')
+          return null
+        }
+
+        console.log('✅ Email found for phone:', portalUser.email)
+
+        // Step 2: Login using the email we found
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
-          email: `${phone}@portal.local`,
+          email: portalUser.email,
           password
         })
 
         if (signInErr) {
-          throw new Error('فشل تسجيل الدخول - تحقق من رقم الهاتف وكلمة المرور')
+          console.error('❌ Sign in failed:', signInErr)
+          throw new Error('كلمة المرور غير صحيحة')
         }
 
-        if (!data.user) throw new Error('Failed to get user')
+        if (!data.user) throw new Error('فشل تسجيل الدخول')
 
-        console.log('✅ User signed in:', data.user.id)
+        console.log('✅ User signed in. Loading portal user data')
 
-        // Load portal user data
-        const portalUser = await loadPortalUser(data.user.id)
-        return portalUser
+        // Step 3: Load portal user data
+        const portalUserData = await loadPortalUser(data.user.id)
+        return portalUserData
       } catch (err: any) {
         const message = err.message || 'خطأ في تسجيل الدخول'
-        console.error('❌ Login error:', err)
+        console.error('❌ Login error:', message)
         setError(message)
         return null
       } finally {
