@@ -147,7 +147,23 @@ export const AdminShops = () => {
         return
       }
 
-      // Create shop
+      // Slug generation function (non-hardcoded, dynamic)
+      const generateSlug = (name: string): string => {
+        const randomNum = Math.floor(1000 + Math.random() * 9000)
+        const slug = name
+          .toLowerCase()
+          .replace(/[\u0600-\u06FF]/g, '') // remove Arabic chars
+          .replace(/\s+/g, '-')
+          .replace(/[^\w-]/g, '')
+          .trim()
+        // If slug is empty (all Arabic), use 'shop' as base
+        const base = slug.length > 0 ? slug.substring(0, 20) : 'shop'
+        return `${base}-${randomNum}`
+      }
+
+      const newSlug = generateSlug(formData.name)
+
+      // Create shop WITH slug field
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .insert([
@@ -158,6 +174,7 @@ export const AdminShops = () => {
             subscription_end_date: formData.subscription_end_date,
             subscription_status: 'active',
             auth_user_id: authData.user?.id,
+            slug: newSlug,  // ← DYNAMIC SLUG SET DURING CREATION
           },
         ])
         .select()
@@ -168,23 +185,10 @@ export const AdminShops = () => {
       
       // Auto-generate slug from shop name and create portal settings
       if (newShopId) {
-        const generateSlug = (name: string): string => {
-          const randomNum = Math.floor(1000 + Math.random() * 9000)
-          const slug = name
-            .toLowerCase()
-            .replace(/[\u0600-\u06FF]/g, '') // remove Arabic chars
-            .replace(/\s+/g, '-')
-            .replace(/[^\w-]/g, '')
-            .trim()
-          // If slug is empty (all Arabic), use 'shop' as base
-          const base = slug.length > 0 ? slug.substring(0, 20) : 'shop'
-          return `${base}-${randomNum}`
-        }
-
         // Create portal settings for new shop
         const { error: portalError } = await supabase.from('portal_settings').insert({
           shop_id: newShopId,
-          portal_slug: generateSlug(formData.name),
+          portal_slug: newSlug,
           is_active: false,
           template_id: 1,
           primary_color: '#D4AF37',
