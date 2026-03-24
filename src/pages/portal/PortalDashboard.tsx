@@ -72,11 +72,30 @@ export function PortalDashboard() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
 
-  // Language state
+  // Language state - Listen for changes in localStorage
   const [lang, setLang] = useState<Language>(() => {
     const saved = localStorage.getItem(`portal_lang_${slug}`)
     return (saved === 'en' ? 'en' : 'ar') as Language
   })
+
+  // Listen for language changes from toggle button
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem(`portal_lang_${slug}`)
+      const newLang = (saved === 'en' ? 'en' : 'ar') as Language
+      setLang(newLang)
+      console.log('🔄 Dashboard language changed to:', newLang)
+    }
+
+    // Listen to storage changes and custom events
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('languageChange', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('languageChange', handleStorageChange)
+    }
+  }, [slug])
 
   const t = translations[lang]
   const dir = lang === 'ar' ? 'rtl' : 'ltr'

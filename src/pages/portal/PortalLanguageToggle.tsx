@@ -15,6 +15,10 @@ export function PortalLanguageToggle({ currentLanguage, onLanguageChange }: Port
     const newLang = currentLanguage === 'ar' ? 'en' : 'ar'
     onLanguageChange(newLang)
     localStorage.setItem(`portal_lang_${slug}`, newLang)
+    
+    // Dispatch custom event so all components listening update their language
+    window.dispatchEvent(new CustomEvent('languageChange', { detail: { lang: newLang } }))
+    console.log('📢 Dispatched languageChange event:', newLang)
   }
 
   return (
