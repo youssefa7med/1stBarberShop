@@ -248,9 +248,27 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
           return null
         }
 
-        // Extract phone from email (format: phone@shopId.portal)
-        const emailParts = user.email.split('@')
-        clientPhone = emailParts[0]
+        // Extract phone from email (format: phone@shopId.portal) OR from user metadata
+        let extractedPhone = ''
+        
+        // Try 1: Extract from email
+        if (user.email.includes('@')) {
+          extractedPhone = user.email.split('@')[0]
+        }
+        
+        // Try 2: Fall back to user metadata if available
+        if (!extractedPhone || extractedPhone.includes(':')) {
+          extractedPhone = user.user_metadata?.phone || user.phone || ''
+          console.log('⚠️ Using metadata phone:', extractedPhone)
+        }
+        
+        clientPhone = extractedPhone
+        console.log('📞 Extracted client phone:', clientPhone, 'from email:', user.email)
+
+        if (!clientPhone) {
+          setError('لم يتم العثور على رقم الهاتف')
+          return null
+        }
 
         // Get client record by phone + shop_id
         const { data: clientData, error: clientErr } = await supabase
@@ -261,7 +279,7 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
           .single()
 
         if (clientErr || !clientData) {
-          console.error('❌ Client record not found:', { clientErr, clientPhone, shopId })
+          console.error('❌ Client record not found:', { clientErr, clientPhone, shopId, userEmail: user.email })
           setError('بيانات العميل غير موجودة. حاول تسجيل الخروج وإعادة تسجيل الدخول')
           return null
         }
@@ -362,13 +380,17 @@ export function usePortalBookings(shopId?: string, customerId?: string) {
   // Initial load
   useEffect(() => {
     if (shopId) {
+      console.log('🚀 Initializing portal bookings for shop:', shopId)
       fetchServices()
       fetchBarbers()
+    } else {
+      console.warn('⚠️ shopId not available yet, will retry when it becomes available')
     }
   }, [shopId, fetchServices, fetchBarbers])
 
   useEffect(() => {
     if (customerId && shopId) {
+      console.log('🚀 Fetching customer bookings for:', customerId, shopId)
       fetchCustomerBookings()
     }
   }, [customerId, shopId, fetchCustomerBookings])
