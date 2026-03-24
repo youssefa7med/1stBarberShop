@@ -125,21 +125,6 @@ SELECT
   STDDEV(price)::numeric(10,2) as price_stddev
 FROM services
 WHERE active = TRUE
-GROUP BY shop_id
-
-UNION ALL
-
-SELECT 
-  shop_id,
-  'transactions' as data_type,
-  COUNT(*) as item_count,
-  COUNT(DISTINCT amount) as unique_amounts,
-  MIN(amount) as min_value,
-  MAX(amount) as max_value,
-  AVG(amount)::numeric(10,2) as avg_value,
-  STDDEV(amount)::numeric(10,2) as amount_stddev
-FROM transactions
-WHERE shop_id IS NOT NULL
 GROUP BY shop_id;
 
 -- ============================================================================
