@@ -10,6 +10,28 @@ export const useTransactions = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Transform database data from lowercase to camelCase
+  const transformTransactionData = (data: any[]): Transaction[] => {
+    return data.map((tx: any) => ({
+      id: tx.id,
+      clientId: tx.clientid,
+      clientName: tx.clientname,
+      clientPhone: tx.clientphone,
+      barberId: tx.barberid,
+      barberName: tx.barbername,
+      serviceType: tx.servicetype,
+      amount: tx.amount,
+      discount: tx.discount || 0,
+      discountType: tx.discount_type || 'fixed',
+      paymentMethod: tx.payment_method || 'cash',
+      notes: tx.notes || '',
+      date: tx.transactiondate,
+      time: tx.transactiontime,
+      createdAt: tx.created_at,
+      updatedAt: tx.updated_at,
+    }))
+  }
+
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true)
@@ -23,11 +45,11 @@ export const useTransactions = () => {
         .from('transactions')
         .select('*')
         .eq('shop_id', shopId)
-        .order('createdAt', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       console.log('Transactions fetched:', data?.length || 0, 'records')
-      setTransactions(data || [])
+      setTransactions(transformTransactionData(data || []))
       setError(null)
     } catch (err: any) {
       console.error('Error fetching transactions:', err)
@@ -49,10 +71,22 @@ export const useTransactions = () => {
       const { data, error } = await supabase
         .from('transactions')
         .insert({
-          ...transaction,
+          clientid: transaction.clientId,
+          clientname: transaction.clientName,
+          clientphone: transaction.clientPhone,
+          barberid: transaction.barberId,
+          barbername: transaction.barberName,
+          servicetype: transaction.serviceType,
+          amount: transaction.amount,
+          discount: transaction.discount || 0,
+          discount_type: transaction.discountType || 'fixed',
+          payment_method: transaction.paymentMethod || 'cash',
+          notes: transaction.notes || '',
+          transactiondate: transaction.date,
+          transactiontime: transaction.time,
           shop_id: shopId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .select()
 
@@ -129,11 +163,12 @@ export const useTransactions = () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .eq('date', date)
-        .order('time', { ascending: false })
+        .eq('shop_id', shopId)
+        .eq('transactiondate', date)
+        .order('transactiontime', { ascending: false })
 
       if (error) throw error
-      return data || []
+      return transformTransactionData(data || [])
     } catch (err: any) {
       toast.error(err.message)
       return []
@@ -145,11 +180,12 @@ export const useTransactions = () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .eq('clientId', clientId)
-        .order('createdAt', { ascending: false })
+        .eq('shop_id', shopId)
+        .eq('clientid', clientId)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
-      return data || []
+      return transformTransactionData(data || [])
     } catch (err: any) {
       toast.error(err.message)
       return []

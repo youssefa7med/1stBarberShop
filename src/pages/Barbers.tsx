@@ -66,10 +66,10 @@ export const Barbers: React.FC = () => {
       const allUniqueClients = new Set(barberTransactions.map(t => t.clientId))
       
       // Monthly revenue
-      const monthlyRevenue = currentMonthTransactions.reduce((sum, t) => sum + t.total, 0)
+      const monthlyRevenue = currentMonthTransactions.reduce((sum, t) => sum + (t.total || t.amount || 0), 0)
       
       // Total revenue
-      const totalRevenue = barberTransactions.reduce((sum, t) => sum + t.total, 0)
+      const totalRevenue = barberTransactions.reduce((sum, t) => sum + (t.total || t.amount || 0), 0)
       
       // Last visit
       const lastTransaction = barberTransactions[0]

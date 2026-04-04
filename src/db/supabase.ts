@@ -45,16 +45,21 @@ export interface Transaction {
   clientId?: string
   clientName: string
   clientPhone?: string
-  visitNumber: number
-  date: string
-  time: string
-  items: Array<{ id: string; name: string; price: number }>
-  subtotal: number
+  barberId?: string
+  barberName?: string
+  serviceType?: string
+  amount?: number
   discount: number
   discountType: 'percentage' | 'fixed'
-  total: number
   paymentMethod: 'cash' | 'card' | 'wallet'
-  barberId?: string
+  notes?: string
+  date: string
+  time: string
+  // Optional fields for client-side calculations
+  visitNumber?: number
+  items?: Array<{ id: string; name: string; price: number }>
+  subtotal?: number
+  total?: number
   createdAt: string
   updatedAt: string
 }
